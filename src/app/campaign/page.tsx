@@ -475,8 +475,8 @@ export default function CampaignEditor() {
                     border: "1px solid #e5e7eb",
                     borderRadius: "8px",
                     overflow: "hidden",
-                    maxWidth: previewMode === "desktop" ? "660px" : "375px",
-                    height: previewMode === "desktop" ? "800px" : "667px",
+                    maxWidth: previewMode === "desktop" ? "100%" : "375px",
+                    height: previewMode === "desktop" ? "700px" : "667px",
                     margin: "0 auto",
                     transition: "max-width 0.3s ease, height 0.3s ease",
                   }}
