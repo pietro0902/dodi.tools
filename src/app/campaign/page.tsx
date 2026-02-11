@@ -11,9 +11,13 @@ import {
   Button,
   BlockStack,
   InlineGrid,
+  InlineStack,
   Modal,
   Box,
   Banner,
+  Spinner,
+  Checkbox,
+  Thumbnail,
 } from "@shopify/polaris";
 import { useRouter } from "next/navigation";
 import {
@@ -21,6 +25,8 @@ import {
   type CampaignTemplate,
 } from "@/lib/campaign-templates";
 import { buildPreviewHtml } from "@/lib/preview-wrapper";
+import { buildProductGridHtml } from "@/lib/product-html";
+import type { ShopifyProduct, ShopifyCollection } from "@/types/shopify";
 
 function useShopifyGlobal() {
   const [bridge, setBridge] = useState<typeof shopify | null>(
@@ -54,6 +60,14 @@ const templateOptions = CAMPAIGN_TEMPLATES.map((t) => ({
   value: t.id,
 }));
 
+const sortOptions = [
+  { label: "Best seller", value: "BEST_SELLING" },
+  { label: "Prezzo: basso → alto", value: "PRICE" },
+  { label: "Prezzo: alto → basso", value: "PRICE_DESC" },
+  { label: "Nome A-Z", value: "TITLE" },
+  { label: "Più recenti", value: "CREATED_AT" },
+];
+
 function isFormDirty(form: CampaignTemplate, template: CampaignTemplate) {
   return (
     form.subject !== template.subject ||
@@ -63,10 +77,17 @@ function isFormDirty(form: CampaignTemplate, template: CampaignTemplate) {
   );
 }
 
+function formatPrice(amount: string, currency: string): string {
+  const num = parseFloat(amount);
+  if (currency === "EUR") return `€${num.toFixed(2)}`;
+  return `${num.toFixed(2)} ${currency}`;
+}
+
 export default function CampaignEditor() {
   const app = useShopifyGlobal();
   const router = useRouter();
 
+  // --- Template & form state ---
   const [selectedTemplateId, setSelectedTemplateId] = useState("blank");
   const [form, setForm] = useState<CampaignTemplate>({
     ...CAMPAIGN_TEMPLATES[0],
@@ -77,15 +98,30 @@ export default function CampaignEditor() {
     null
   );
 
-  // Debounced preview
+  // --- Preview ---
   const [previewHtml, setPreviewHtml] = useState("");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // --- Product picker ---
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [products, setProducts] = useState<ShopifyProduct[]>([]);
+  const [collections, setCollections] = useState<ShopifyCollection[]>([]);
+  const [collectionsLoaded, setCollectionsLoaded] = useState(false);
+  const [productsLoading, setProductsLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCollection, setSelectedCollection] = useState("");
+  const [selectedSort, setSelectedSort] = useState("BEST_SELLING");
+  const [selectedProducts, setSelectedProducts] = useState<Set<string>>(
+    new Set()
+  );
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const currentTemplate = useMemo(
     () => CAMPAIGN_TEMPLATES.find((t) => t.id === selectedTemplateId)!,
     [selectedTemplateId]
   );
 
+  // --- Preview debounce ---
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
@@ -105,6 +141,7 @@ export default function CampaignEditor() {
     };
   }, [form.subject, form.bodyHtml, form.ctaText, form.ctaUrl]);
 
+  // --- Template handlers ---
   const applyTemplate = useCallback((id: string) => {
     const tpl = CAMPAIGN_TEMPLATES.find((t) => t.id === id);
     if (!tpl) return;
@@ -142,6 +179,7 @@ export default function CampaignEditor() {
     []
   );
 
+  // --- Send campaign ---
   const handleSend = useCallback(async () => {
     if (!app) return;
     if (!form.subject || !form.bodyHtml) {
@@ -183,6 +221,132 @@ export default function CampaignEditor() {
       setSending(false);
     }
   }, [form, app, applyTemplate]);
+
+  // --- Product picker: fetch products ---
+  const fetchProducts = useCallback(
+    async (query?: string, collection?: string, sort?: string) => {
+      if (!app) return;
+      setProductsLoading(true);
+      try {
+        const token = await app.idToken();
+        const params = new URLSearchParams();
+        if (query) params.set("q", query);
+        if (collection) params.set("collection", collection);
+        if (sort) params.set("sort", sort);
+        params.set("limit", "20");
+
+        const res = await fetch(`/api/products/search?${params}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        setProducts(data.products || []);
+      } catch {
+        setProducts([]);
+      } finally {
+        setProductsLoading(false);
+      }
+    },
+    [app]
+  );
+
+  // --- Product picker: fetch collections ---
+  const fetchCollections = useCallback(async () => {
+    if (!app || collectionsLoaded) return;
+    try {
+      const token = await app.idToken();
+      const res = await fetch("/api/collections/list", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setCollections(data.collections || []);
+      setCollectionsLoaded(true);
+    } catch {
+      setCollections([]);
+    }
+  }, [app, collectionsLoaded]);
+
+  // --- Open picker ---
+  const handleOpenPicker = useCallback(() => {
+    setPickerOpen(true);
+    setSelectedProducts(new Set());
+    setSearchQuery("");
+    setSelectedCollection("");
+    setSelectedSort("BEST_SELLING");
+    fetchCollections();
+    fetchProducts(undefined, undefined, "BEST_SELLING");
+  }, [fetchCollections, fetchProducts]);
+
+  // --- Search with debounce ---
+  const handleSearchChange = useCallback(
+    (value: string) => {
+      setSearchQuery(value);
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+      searchDebounceRef.current = setTimeout(() => {
+        fetchProducts(value, selectedCollection, selectedSort);
+      }, 400);
+    },
+    [fetchProducts, selectedCollection, selectedSort]
+  );
+
+  // --- Collection filter ---
+  const handleCollectionChange = useCallback(
+    (value: string) => {
+      setSelectedCollection(value);
+      fetchProducts(searchQuery, value, selectedSort);
+    },
+    [fetchProducts, searchQuery, selectedSort]
+  );
+
+  // --- Sort filter ---
+  const handleSortChange = useCallback(
+    (value: string) => {
+      setSelectedSort(value);
+      fetchProducts(searchQuery, selectedCollection, value);
+    },
+    [fetchProducts, searchQuery, selectedCollection]
+  );
+
+  // --- Toggle product selection ---
+  const handleToggleProduct = useCallback((productId: string) => {
+    setSelectedProducts((prev) => {
+      const next = new Set(prev);
+      if (next.has(productId)) {
+        next.delete(productId);
+      } else {
+        next.add(productId);
+      }
+      return next;
+    });
+  }, []);
+
+  // --- Insert selected products into body ---
+  const handleInsertProducts = useCallback(() => {
+    const selected = products.filter((p) => selectedProducts.has(p.id));
+    if (selected.length === 0) return;
+
+    const html = buildProductGridHtml(selected);
+    setForm((prev) => ({
+      ...prev,
+      bodyHtml: prev.bodyHtml + html,
+    }));
+    setPickerOpen(false);
+    setSelectedProducts(new Set());
+    if (app) {
+      app.toast.show(
+        `${selected.length} prodott${selected.length === 1 ? "o inserito" : "i inseriti"}`
+      );
+    }
+  }, [products, selectedProducts, app]);
+
+  const collectionOptions = useMemo(
+    () => [
+      { label: "Tutte le collezioni", value: "" },
+      ...collections.map((c) => ({ label: c.title, value: c.handle })),
+    ],
+    [collections]
+  );
 
   const selectedDescription =
     CAMPAIGN_TEMPLATES.find((t) => t.id === selectedTemplateId)?.description ||
@@ -233,9 +397,14 @@ export default function CampaignEditor() {
                   onChange={handleFieldChange("bodyHtml")}
                   multiline={12}
                   placeholder="<p>Ciao {{name}}, scopri le novità...</p>"
-                  helpText="Usa {{name}} per inserire il nome del destinatario"
+                  helpText="Usa {{name}} per il nome destinatario. Usa il bottone qui sotto per inserire prodotti."
                   autoComplete="off"
                 />
+                <Box>
+                  <Button onClick={handleOpenPicker} variant="secondary">
+                    Inserisci prodotti
+                  </Button>
+                </Box>
                 <TextField
                   label="Testo CTA"
                   value={form.ctaText}
@@ -271,8 +440,8 @@ export default function CampaignEditor() {
                 {!form.subject && !form.bodyHtml ? (
                   <Banner tone="info">
                     <p>
-                      Compila i campi a sinistra per visualizzare l&apos;anteprima
-                      dell&apos;email.
+                      Compila i campi a sinistra per visualizzare
+                      l&apos;anteprima dell&apos;email.
                     </p>
                   </Banner>
                 ) : (
@@ -320,6 +489,128 @@ export default function CampaignEditor() {
             Hai modificato il contenuto attuale. Cambiando template perderai le
             modifiche non salvate.
           </Text>
+        </Modal.Section>
+      </Modal>
+
+      {/* Product picker modal */}
+      <Modal
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        title="Inserisci prodotti"
+        primaryAction={{
+          content: `Inserisci ${selectedProducts.size > 0 ? `(${selectedProducts.size})` : ""}`,
+          onAction: handleInsertProducts,
+          disabled: selectedProducts.size === 0,
+        }}
+        secondaryActions={[
+          { content: "Annulla", onAction: () => setPickerOpen(false) },
+        ]}
+      >
+        <Modal.Section>
+          <BlockStack gap="400">
+            {/* Search and filters */}
+            <TextField
+              label="Cerca prodotti"
+              value={searchQuery}
+              onChange={handleSearchChange}
+              placeholder="Nome prodotto..."
+              autoComplete="off"
+              clearButton
+              onClearButtonClick={() => handleSearchChange("")}
+            />
+            <InlineStack gap="300" wrap={false}>
+              <Box minWidth="200px">
+                <Select
+                  label="Collezione"
+                  options={collectionOptions}
+                  value={selectedCollection}
+                  onChange={handleCollectionChange}
+                />
+              </Box>
+              <Box minWidth="200px">
+                <Select
+                  label="Ordina per"
+                  options={sortOptions}
+                  value={selectedSort}
+                  onChange={handleSortChange}
+                />
+              </Box>
+            </InlineStack>
+
+            {/* Product grid */}
+            {productsLoading ? (
+              <InlineStack align="center">
+                <Spinner size="large" />
+              </InlineStack>
+            ) : products.length === 0 ? (
+              <Banner tone="warning">
+                <p>Nessun prodotto trovato. Prova a cambiare i filtri.</p>
+              </Banner>
+            ) : (
+              <BlockStack gap="200">
+                <Text as="p" variant="bodySm" tone="subdued">
+                  {products.length} prodott{products.length === 1 ? "o" : "i"}{" "}
+                  trovat{products.length === 1 ? "o" : "i"} — seleziona quelli
+                  da inserire
+                </Text>
+                {products.map((product) => (
+                  <div
+                    key={product.id}
+                    style={{
+                      padding: "12px",
+                      border: selectedProducts.has(product.id)
+                        ? "2px solid #2c6ecb"
+                        : "1px solid #e5e7eb",
+                      borderRadius: "8px",
+                      cursor: "pointer",
+                      backgroundColor: selectedProducts.has(product.id)
+                        ? "#f0f5ff"
+                        : "transparent",
+                    }}
+                    onClick={() => handleToggleProduct(product.id)}
+                  >
+                    <InlineStack gap="300" align="start" blockAlign="center">
+                      <Checkbox
+                        label=""
+                        checked={selectedProducts.has(product.id)}
+                        onChange={() => handleToggleProduct(product.id)}
+                      />
+                      <Thumbnail
+                        source={product.imageUrl || ""}
+                        alt={product.title}
+                        size="medium"
+                      />
+                      <BlockStack gap="100">
+                        <Text as="span" variant="bodyMd" fontWeight="semibold">
+                          {product.title}
+                        </Text>
+                        <InlineStack gap="200">
+                          <Text as="span" variant="bodyMd" fontWeight="bold">
+                            {formatPrice(product.price, product.currency)}
+                          </Text>
+                          {product.compareAtPrice &&
+                            parseFloat(product.compareAtPrice) >
+                              parseFloat(product.price) && (
+                              <Text
+                                as="span"
+                                variant="bodySm"
+                                tone="subdued"
+                                textDecorationLine="line-through"
+                              >
+                                {formatPrice(
+                                  product.compareAtPrice,
+                                  product.currency
+                                )}
+                              </Text>
+                            )}
+                        </InlineStack>
+                      </BlockStack>
+                    </InlineStack>
+                  </div>
+                ))}
+              </BlockStack>
+            )}
+          </BlockStack>
         </Modal.Section>
       </Modal>
     </Page>

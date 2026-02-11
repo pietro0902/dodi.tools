@@ -97,3 +97,30 @@ export interface ShopifyCustomer {
 export interface CustomersResponse {
   customers: ShopifyCustomer[];
 }
+
+// Products & Collections (GraphQL)
+
+export interface ShopifyProduct {
+  id: string;
+  title: string;
+  handle: string;
+  imageUrl: string | null;
+  price: string;
+  compareAtPrice: string | null;
+  currency: string;
+  url: string;
+}
+
+export interface ShopifyCollection {
+  id: string;
+  title: string;
+  handle: string;
+}
+
+export type ProductSortKey =
+  | "BEST_SELLING"
+  | "PRICE"
+  | "PRICE_DESC"
+  | "TITLE"
+  | "CREATED_AT"
+  | "RELEVANCE";
