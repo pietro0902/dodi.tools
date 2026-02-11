@@ -140,6 +140,32 @@ interface SearchProductsOpts {
   limit?: number;
 }
 
+const PRODUCT_FIELDS = `
+  id
+  title
+  handle
+  featuredImage { url }
+  priceRange {
+    minVariantPrice { amount currencyCode }
+  }
+  compareAtPriceRange {
+    minVariantPrice { amount }
+  }
+`;
+
+interface ProductNode {
+  id: string;
+  title: string;
+  handle: string;
+  featuredImage: { url: string } | null;
+  priceRange: {
+    minVariantPrice: { amount: string; currencyCode: string };
+  };
+  compareAtPriceRange: {
+    minVariantPrice: { amount: string };
+  };
+}
+
 export async function searchProducts(opts: SearchProductsOpts = {}): Promise<ShopifyProduct[]> {
   const { query, collectionHandle, sortKey = "BEST_SELLING", limit = 20 } = opts;
 
@@ -153,48 +179,29 @@ export async function searchProducts(opts: SearchProductsOpts = {}): Promise<Sho
   // BEST_SELLING and PRICE are NOT valid here — we fetch and sort client-side.
   const needsClientSort = ["BEST_SELLING", "PRICE", "PRICE_DESC"].includes(sortKey);
   const gqlSortKey = needsClientSort ? "UPDATED_AT" : sortKey === "CREATED_AT" ? "CREATED_AT" : sortKey;
-  const reverse = needsClientSort ? true : false; // UPDATED_AT desc = newest first as fallback
+  const reverse = needsClientSort ? true : false;
+  const fetchLimit = needsClientSort ? 50 : limit;
 
-  const searchQuery = query ? `title:*${query}*` : "";
+  // Use query filter only when there's a search term — empty string returns no results
+  const hasQuery = !!query;
+  const gqlQuery = hasQuery
+    ? `query SearchProducts($first: Int!, $query: String!, $sortKey: ProductSortKeys!, $reverse: Boolean!) {
+        products(first: $first, query: $query, sortKey: $sortKey, reverse: $reverse) {
+          edges { node { ${PRODUCT_FIELDS} } }
+        }
+      }`
+    : `query ListProducts($first: Int!, $sortKey: ProductSortKeys!, $reverse: Boolean!) {
+        products(first: $first, sortKey: $sortKey, reverse: $reverse) {
+          edges { node { ${PRODUCT_FIELDS} } }
+        }
+      }`;
+
+  const variables: Record<string, unknown> = { first: fetchLimit, sortKey: gqlSortKey, reverse };
+  if (hasQuery) variables.query = `title:*${query}*`;
 
   const data = await graphqlQuery<{
-    products: {
-      edges: Array<{
-        node: {
-          id: string;
-          title: string;
-          handle: string;
-          featuredImage: { url: string } | null;
-          priceRangeV2: {
-            minVariantPrice: { amount: string; currencyCode: string };
-          };
-          compareAtPriceRange: {
-            minVariantPrice: { amount: string };
-          };
-        };
-      }>;
-    };
-  }>(
-    `query SearchProducts($first: Int!, $query: String!, $sortKey: ProductSortKeys!, $reverse: Boolean!) {
-      products(first: $first, query: $query, sortKey: $sortKey, reverse: $reverse) {
-        edges {
-          node {
-            id
-            title
-            handle
-            featuredImage { url }
-            priceRangeV2 {
-              minVariantPrice { amount currencyCode }
-            }
-            compareAtPriceRange {
-              minVariantPrice { amount }
-            }
-          }
-        }
-      }
-    }`,
-    { first: needsClientSort ? 50 : limit, query: searchQuery, sortKey: gqlSortKey, reverse }
-  );
+    products: { edges: Array<{ node: ProductNode }> };
+  }>(gqlQuery, variables);
 
   let products = data.products.edges.map(({ node }) => mapProduct(node));
 
@@ -225,51 +232,23 @@ async function searchProductsByCollection(
     : "BEST_SELLING";
 
   const data = await graphqlQuery<{
-    collectionByHandle: {
-      products: {
-        edges: Array<{
-          node: {
-            id: string;
-            title: string;
-            handle: string;
-            featuredImage: { url: string } | null;
-            priceRangeV2: {
-              minVariantPrice: { amount: string; currencyCode: string };
-            };
-            compareAtPriceRange: {
-              minVariantPrice: { amount: string };
-            };
-          };
-        }>;
-      };
+    collection: {
+      products: { edges: Array<{ node: ProductNode }> };
     } | null;
   }>(
     `query CollectionProducts($handle: String!, $first: Int!, $sortKey: ProductCollectionSortKeys!, $reverse: Boolean!) {
-      collectionByHandle(handle: $handle) {
+      collection(handle: $handle) {
         products(first: $first, sortKey: $sortKey, reverse: $reverse) {
-          edges {
-            node {
-              id
-              title
-              handle
-              featuredImage { url }
-              priceRangeV2 {
-                minVariantPrice { amount currencyCode }
-              }
-              compareAtPriceRange {
-                minVariantPrice { amount }
-              }
-            }
-          }
+          edges { node { ${PRODUCT_FIELDS} } }
         }
       }
     }`,
     { handle: collectionHandle, first: limit, sortKey: collSortKey, reverse }
   );
 
-  if (!data.collectionByHandle) return [];
+  if (!data.collection) return [];
 
-  let products = data.collectionByHandle.products.edges.map(({ node }) => mapProduct(node));
+  let products = data.collection.products.edges.map(({ node }) => mapProduct(node));
 
   // Client-side title filter if query provided (collection query doesn't support title filter)
   if (query) {
@@ -280,23 +259,16 @@ async function searchProductsByCollection(
   return products;
 }
 
-function mapProduct(node: {
-  id: string;
-  title: string;
-  handle: string;
-  featuredImage: { url: string } | null;
-  priceRangeV2: { minVariantPrice: { amount: string; currencyCode: string } };
-  compareAtPriceRange: { minVariantPrice: { amount: string } };
-}): ShopifyProduct {
+function mapProduct(node: ProductNode): ShopifyProduct {
   const compareAt = parseFloat(node.compareAtPriceRange.minVariantPrice.amount);
   return {
     id: node.id,
     title: node.title,
     handle: node.handle,
     imageUrl: node.featuredImage?.url || null,
-    price: node.priceRangeV2.minVariantPrice.amount,
+    price: node.priceRange.minVariantPrice.amount,
     compareAtPrice: compareAt > 0 ? node.compareAtPriceRange.minVariantPrice.amount : null,
-    currency: node.priceRangeV2.minVariantPrice.currencyCode,
+    currency: node.priceRange.minVariantPrice.currencyCode,
     url: `${STORE_URL}/products/${node.handle}`,
   };
 }

@@ -238,11 +238,18 @@ export default function CampaignEditor() {
         const res = await fetch(`/api/products/search?${params}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
+        if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
         setProducts(data.products || []);
-      } catch {
+      } catch (err) {
+        console.error("Product fetch error:", err);
         setProducts([]);
+        if (app) {
+          app.toast.show(
+            err instanceof Error ? err.message : "Errore nel caricamento prodotti",
+            { isError: true }
+          );
+        }
       } finally {
         setProductsLoading(false);
       }
