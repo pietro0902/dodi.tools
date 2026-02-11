@@ -4,7 +4,7 @@ application_url = "https://dodi-tools-sgju.vercel.app"
 embedded = true
 
 [access_scopes]
-scopes = "read_customers,read_orders"
+scopes = "read_customers,read_orders,read_products"
 
 [auth]
 redirect_urls = ["https://dodi-tools-sgju.vercel.app/auth/callback"]
