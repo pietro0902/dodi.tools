@@ -1,13 +1,13 @@
 client_id = "a2e539d2dfb4ef554980a9b16937b3d0"
 name = "Email Marketing Automation M2"
-application_url = "https://example.com"
+application_url = "https://dodi-tools-sgju.vercel.app"
 embedded = true
 
 [access_scopes]
 scopes = "read_customers,read_orders"
 
 [auth]
-redirect_urls = ["https://example.com/auth/callback"]
+redirect_urls = ["https://dodi-tools-sgju.vercel.app/auth/callback"]
 
 [webhooks]
 api_version = "2026-01"
