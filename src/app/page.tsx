@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import {
   Page,
   Layout,
@@ -16,7 +16,6 @@ import {
   Spinner,
   Box,
 } from "@shopify/polaris";
-import { useAppBridge } from "@shopify/app-bridge-react";
 
 interface DashboardStats {
   subscriberCount: number;
@@ -32,8 +31,16 @@ interface CampaignForm {
   ctaUrl: string;
 }
 
+function getShopifyGlobal() {
+  if (typeof window !== "undefined" && typeof shopify !== "undefined") {
+    return shopify;
+  }
+  return null;
+}
+
 export default function Dashboard() {
-  const shopify = useAppBridge();
+  const shopify = useMemo(() => getShopifyGlobal(), []);
+  const isEmbedded = !!shopify;
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
   const [statsError, setStatsError] = useState("");
@@ -47,6 +54,11 @@ export default function Dashboard() {
   const [sending, setSending] = useState(false);
 
   const fetchStats = useCallback(async () => {
+    if (!shopify) {
+      setStatsLoading(false);
+      setStatsError("Apri questa app da Shopify Admin per visualizzare i dati.");
+      return;
+    }
     setStatsLoading(true);
     setStatsError("");
     try {
@@ -78,6 +90,7 @@ export default function Dashboard() {
   );
 
   const handleSendCampaign = useCallback(async () => {
+    if (!shopify) return;
     if (!campaign.subject || !campaign.htmlBody) {
       shopify.toast.show("Compila almeno oggetto e corpo HTML", {
         isError: true,
