@@ -17,6 +17,7 @@ import {
   Spinner,
   Checkbox,
   Thumbnail,
+  DropZone,
 } from "@shopify/polaris";
 import { useRouter } from "next/navigation";
 import {
@@ -108,6 +109,7 @@ export default function CampaignEditor() {
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [imageUrl, setImageUrl] = useState("");
   const [imageAlt, setImageAlt] = useState("");
+  const [imageUploading, setImageUploading] = useState(false);
 
   // --- Product picker ---
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -368,6 +370,37 @@ export default function CampaignEditor() {
     setImageAlt("");
     if (app) app.toast.show("Immagine inserita");
   }, [imageUrl, imageAlt, app]);
+
+  // --- Upload image file to Shopify CDN ---
+  const handleImageDrop = useCallback(
+    async (_dropFiles: File[], acceptedFiles: File[]) => {
+      if (!app || acceptedFiles.length === 0) return;
+      const file = acceptedFiles[0];
+      setImageUploading(true);
+      try {
+        const token = await app.idToken();
+        const formData = new FormData();
+        formData.append("file", file);
+        const res = await fetch("/api/files/upload", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData,
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+        setImageUrl(data.url);
+        app.toast.show("Immagine caricata");
+      } catch (err) {
+        app.toast.show(
+          err instanceof Error ? err.message : "Errore nel caricamento",
+          { isError: true }
+        );
+      } finally {
+        setImageUploading(false);
+      }
+    },
+    [app]
+  );
 
   // --- Insert selected products into body ---
   const handleInsertProducts = useCallback(() => {
@@ -734,26 +767,70 @@ export default function CampaignEditor() {
       {/* Image inserter modal */}
       <Modal
         open={imageModalOpen}
-        onClose={() => setImageModalOpen(false)}
+        onClose={() => {
+          setImageModalOpen(false);
+          setImageUrl("");
+          setImageAlt("");
+        }}
         title="Inserisci immagine"
         primaryAction={{
-          content: "Inserisci",
+          content: "Inserisci nell'email",
           onAction: handleInsertImage,
-          disabled: !imageUrl,
+          disabled: !imageUrl || imageUploading,
         }}
         secondaryActions={[
-          { content: "Annulla", onAction: () => setImageModalOpen(false) },
+          {
+            content: "Annulla",
+            onAction: () => {
+              setImageModalOpen(false);
+              setImageUrl("");
+              setImageAlt("");
+            },
+          },
         ]}
       >
         <Modal.Section>
           <BlockStack gap="400">
+            {/* Drop zone / click to browse */}
+            {imageUploading ? (
+              <Box padding="800">
+                <BlockStack gap="300" align="center">
+                  <InlineStack align="center">
+                    <Spinner size="large" />
+                  </InlineStack>
+                  <Text as="p" alignment="center" tone="subdued">
+                    Caricamento in corso...
+                  </Text>
+                </BlockStack>
+              </Box>
+            ) : (
+              <DropZone
+                accept="image/jpeg, image/png, image/gif, image/webp"
+                type="image"
+                allowMultiple={false}
+                onDrop={handleImageDrop}
+              >
+                <DropZone.FileUpload
+                  actionTitle="Carica immagine"
+                  actionHint="o trascina qui un file JPG, PNG, GIF, WebP"
+                />
+              </DropZone>
+            )}
+
+            {/* Separator */}
+            <InlineStack align="center">
+              <Text as="p" variant="bodySm" tone="subdued">
+                oppure inserisci un URL diretto
+              </Text>
+            </InlineStack>
+
+            {/* Manual URL fallback */}
             <TextField
               label="URL immagine"
               value={imageUrl}
               onChange={setImageUrl}
               placeholder="https://cdn.shopify.com/..."
               autoComplete="off"
-              helpText="Inserisci l'URL diretto dell'immagine (JPG, PNG, GIF)"
             />
             <TextField
               label="Testo alternativo"
@@ -763,6 +840,8 @@ export default function CampaignEditor() {
               autoComplete="off"
               helpText="Opzionale. Viene mostrato se l'immagine non si carica."
             />
+
+            {/* Preview */}
             {imageUrl && (
               <Box>
                 <Text as="p" variant="bodySm" tone="subdued">

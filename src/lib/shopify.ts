@@ -280,6 +280,153 @@ function mapProduct(node: ProductNode): ShopifyProduct {
   };
 }
 
+// --- File uploads (Shopify Files API) ---
+
+interface StagedUploadTarget {
+  url: string;
+  resourceUrl: string;
+  parameters: Array<{ name: string; value: string }>;
+}
+
+export async function uploadFileToShopify(
+  file: Buffer,
+  filename: string,
+  mimeType: string,
+  fileSize: number
+): Promise<string> {
+  const staged = await createStagedUpload(filename, mimeType, fileSize);
+  await uploadToStagedUrl(staged, file, filename, mimeType);
+  const fileId = await createShopifyFile(staged.resourceUrl);
+  return await pollForFileUrl(fileId);
+}
+
+async function createStagedUpload(
+  filename: string,
+  mimeType: string,
+  fileSize: number
+): Promise<StagedUploadTarget> {
+  const data = await graphqlQuery<{
+    stagedUploadsCreate: {
+      stagedTargets: StagedUploadTarget[];
+      userErrors: Array<{ field: string[]; message: string }>;
+    };
+  }>(
+    `mutation StagedUpload($input: [StagedUploadInput!]!) {
+      stagedUploadsCreate(input: $input) {
+        stagedTargets {
+          url
+          resourceUrl
+          parameters { name value }
+        }
+        userErrors { field message }
+      }
+    }`,
+    {
+      input: [
+        {
+          resource: "IMAGE",
+          filename,
+          mimeType,
+          fileSize: fileSize.toString(),
+          httpMethod: "POST",
+        },
+      ],
+    }
+  );
+
+  const errors = data.stagedUploadsCreate.userErrors;
+  if (errors.length > 0) {
+    throw new Error(`Staged upload: ${errors[0].message}`);
+  }
+
+  return data.stagedUploadsCreate.stagedTargets[0];
+}
+
+async function uploadToStagedUrl(
+  target: StagedUploadTarget,
+  file: Buffer,
+  filename: string,
+  mimeType: string
+): Promise<void> {
+  const formData = new FormData();
+  for (const param of target.parameters) {
+    formData.append(param.name, param.value);
+  }
+  const arrayBuffer = file.buffer.slice(file.byteOffset, file.byteOffset + file.byteLength) as ArrayBuffer;
+  formData.append("file", new Blob([arrayBuffer], { type: mimeType }), filename);
+
+  const res = await fetch(target.url, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!res.ok) {
+    throw new Error(`Upload failed: ${res.status} ${res.statusText}`);
+  }
+}
+
+async function createShopifyFile(resourceUrl: string): Promise<string> {
+  const data = await graphqlQuery<{
+    fileCreate: {
+      files: Array<{ id: string }>;
+      userErrors: Array<{ field: string[]; message: string }>;
+    };
+  }>(
+    `mutation FileCreate($files: [FileCreateInput!]!) {
+      fileCreate(files: $files) {
+        files { id }
+        userErrors { field message }
+      }
+    }`,
+    {
+      files: [{ originalSource: resourceUrl, contentType: "IMAGE" }],
+    }
+  );
+
+  const errors = data.fileCreate.userErrors;
+  if (errors.length > 0) {
+    throw new Error(`File create: ${errors[0].message}`);
+  }
+
+  return data.fileCreate.files[0].id;
+}
+
+async function pollForFileUrl(
+  fileId: string,
+  maxAttempts = 15
+): Promise<string> {
+  for (let i = 0; i < maxAttempts; i++) {
+    const data = await graphqlQuery<{
+      node: {
+        image?: { url: string };
+        fileStatus: string;
+      } | null;
+    }>(
+      `query FileStatus($id: ID!) {
+        node(id: $id) {
+          ... on MediaImage {
+            image { url }
+            fileStatus
+          }
+        }
+      }`,
+      { id: fileId }
+    );
+
+    if (data.node?.image?.url && data.node.fileStatus === "READY") {
+      return data.node.image.url;
+    }
+
+    if (data.node?.fileStatus === "FAILED") {
+      throw new Error("Elaborazione immagine fallita");
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
+
+  throw new Error("Timeout: elaborazione immagine troppo lunga");
+}
+
 export async function getCollections(): Promise<ShopifyCollection[]> {
   const data = await graphqlQuery<{
     collections: {
