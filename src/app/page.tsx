@@ -12,6 +12,7 @@ import {
   BlockStack,
   InlineStack,
   Spinner,
+  Modal,
 } from "@shopify/polaris";
 import { useRouter } from "next/navigation";
 
@@ -25,6 +26,13 @@ interface DashboardStats {
 interface AutomationStatus {
   welcome: { enabled: boolean };
   abandonedCart: { enabled: boolean };
+}
+
+interface ScheduledCampaignItem {
+  id: string;
+  subject: string;
+  scheduledAt: string;
+  recipientCount: number;
 }
 
 function useShopifyGlobal() {
@@ -58,6 +66,10 @@ export default function Dashboard() {
   const [statsLoading, setStatsLoading] = useState(true);
   const [statsError, setStatsError] = useState("");
   const [automationStatus, setAutomationStatus] = useState<AutomationStatus | null>(null);
+  const [scheduledCampaigns, setScheduledCampaigns] = useState<ScheduledCampaignItem[]>([]);
+  const [scheduledLoading, setScheduledLoading] = useState(true);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [cancelConfirmId, setCancelConfirmId] = useState<string | null>(null);
 
   const router = useRouter();
 
@@ -93,6 +105,21 @@ export default function Dashboard() {
       } catch {
         // Non-critical, ignore
       }
+
+      // Fetch scheduled campaigns
+      try {
+        const schedRes = await fetch("/api/campaigns/scheduled", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (schedRes.ok) {
+          const schedData = await schedRes.json();
+          setScheduledCampaigns(schedData.campaigns || []);
+        }
+      } catch {
+        // Non-critical, ignore
+      } finally {
+        setScheduledLoading(false);
+      }
     } catch (err) {
       setStatsError(
         err instanceof Error ? err.message : "Errore nel caricamento"
@@ -105,6 +132,32 @@ export default function Dashboard() {
   useEffect(() => {
     fetchStats();
   }, [fetchStats]);
+
+  const handleCancelCampaign = useCallback(async (id: string) => {
+    if (!app) return;
+    setCancelConfirmId(null);
+    setCancellingId(id);
+    try {
+      const token = await app.idToken();
+      const res = await fetch(`/api/campaigns/scheduled?id=${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || `HTTP ${res.status}`);
+      }
+      setScheduledCampaigns((prev) => prev.filter((c) => c.id !== id));
+      app.toast.show("Campagna annullata");
+    } catch (err) {
+      app.toast.show(
+        err instanceof Error ? err.message : "Errore nell'annullamento",
+        { isError: true }
+      );
+    } finally {
+      setCancellingId(null);
+    }
+  }, [app]);
 
   return (
     <Page title="Email Marketing Dashboard">
@@ -210,6 +263,71 @@ export default function Dashboard() {
           </Card>
         </Layout.Section>
 
+        {/* Scheduled Campaigns */}
+        <Layout.Section>
+          <Card>
+            <BlockStack gap="400">
+              <InlineStack align="space-between" blockAlign="center">
+                <Text as="h2" variant="headingMd">
+                  Campagne Programmate
+                </Text>
+                {scheduledCampaigns.length > 0 && (
+                  <Badge tone="info">{`${scheduledCampaigns.length}`}</Badge>
+                )}
+              </InlineStack>
+              {scheduledLoading ? (
+                <InlineStack align="center">
+                  <Spinner size="small" />
+                </InlineStack>
+              ) : scheduledCampaigns.length === 0 ? (
+                <Text as="p" variant="bodySm" tone="subdued">
+                  Nessuna campagna programmata
+                </Text>
+              ) : (
+                <BlockStack gap="300">
+                  {scheduledCampaigns.map((campaign) => (
+                    <div
+                      key={campaign.id}
+                      style={{
+                        padding: "12px",
+                        border: "1px solid #e5e7eb",
+                        borderRadius: "8px",
+                      }}
+                    >
+                      <InlineStack align="space-between" blockAlign="center" wrap>
+                        <BlockStack gap="100">
+                          <Text as="span" variant="bodyMd" fontWeight="semibold">
+                            {campaign.subject}
+                          </Text>
+                          <Text as="span" variant="bodySm" tone="subdued">
+                            {new Date(campaign.scheduledAt).toLocaleString("it-IT", {
+                              day: "numeric",
+                              month: "long",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                            {` \u2022 ${campaign.recipientCount} destinatar${campaign.recipientCount === 1 ? "io" : "i"}`}
+                          </Text>
+                        </BlockStack>
+                        <Button
+                          variant="primary"
+                          tone="critical"
+                          size="slim"
+                          onClick={() => setCancelConfirmId(campaign.id)}
+                          loading={cancellingId === campaign.id}
+                        >
+                          Annulla
+                        </Button>
+                      </InlineStack>
+                    </div>
+                  ))}
+                </BlockStack>
+              )}
+            </BlockStack>
+          </Card>
+        </Layout.Section>
+
         {/* Automations */}
         <Layout.Section>
           <Card>
@@ -262,6 +380,27 @@ export default function Dashboard() {
           </Card>
         </Layout.Section>
       </Layout>
+
+      {/* Cancel scheduled campaign confirmation modal */}
+      <Modal
+        open={cancelConfirmId !== null}
+        onClose={() => setCancelConfirmId(null)}
+        title="Annulla campagna programmata"
+        primaryAction={{
+          content: "Annulla campagna",
+          onAction: () => cancelConfirmId && handleCancelCampaign(cancelConfirmId),
+          destructive: true,
+        }}
+        secondaryActions={[
+          { content: "Chiudi", onAction: () => setCancelConfirmId(null) },
+        ]}
+      >
+        <Modal.Section>
+          <Text as="p">
+            {`Vuoi annullare la campagna "${scheduledCampaigns.find((c) => c.id === cancelConfirmId)?.subject || ""}"? Questa azione non può essere annullata.`}
+          </Text>
+        </Modal.Section>
+      </Modal>
     </Page>
   );
 }

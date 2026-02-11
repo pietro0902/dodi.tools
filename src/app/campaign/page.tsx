@@ -86,6 +86,23 @@ function isFormDirty(form: CampaignTemplate, template: CampaignTemplate) {
   );
 }
 
+function formatScheduleDate(date: string, time: string): string {
+  if (!date || !time) return "";
+  const d = new Date(`${date}T${time}`);
+  return d.toLocaleString("it-IT", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function isScheduleDatePast(date: string, time: string): boolean {
+  if (!date || !time) return false;
+  return new Date(`${date}T${time}`).getTime() <= Date.now();
+}
+
 function formatPrice(amount: string, currency: string): string {
   const num = parseFloat(amount);
   if (currency === "EUR") return `€${num.toFixed(2)}`;
@@ -108,13 +125,19 @@ export default function CampaignEditor() {
   );
 
   // --- Step flow ---
-  const [step, setStep] = useState<1 | 2>(1);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [recipientMode, setRecipientMode] = useState<"all" | "manual">("all");
   const [customerList, setCustomerList] = useState<CustomerListItem[]>([]);
   const [customersLoading, setCustomersLoading] = useState(false);
   const [selectedCustomerIds, setSelectedCustomerIds] = useState<Set<number>>(new Set());
   const [customerSearch, setCustomerSearch] = useState("");
   const [sendConfirmOpen, setSendConfirmOpen] = useState(false);
+
+  // --- Step 3: scheduling ---
+  const [sendMode, setSendMode] = useState<"now" | "schedule">("now");
+  const [scheduleDate, setScheduleDate] = useState("");
+  const [scheduleTime, setScheduleTime] = useState("");
+  const [scheduling, setScheduling] = useState(false);
 
   // --- Logo size ---
   const [logoWidth, setLogoWidth] = useState(120);
@@ -267,6 +290,26 @@ export default function CampaignEditor() {
     setStep(1);
   }, []);
 
+  const handleGoToStep3 = useCallback(() => {
+    if (recipientMode === "manual" && selectedCustomerIds.size === 0) return;
+    // Default schedule: tomorrow, same time rounded to 15 min
+    if (!scheduleDate || !scheduleTime) {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const yyyy = tomorrow.getFullYear();
+      const mm = String(tomorrow.getMonth() + 1).padStart(2, "0");
+      const dd = String(tomorrow.getDate()).padStart(2, "0");
+      setScheduleDate(`${yyyy}-${mm}-${dd}`);
+      const now = new Date();
+      const minutes = Math.ceil(now.getMinutes() / 15) * 15;
+      now.setMinutes(minutes, 0, 0);
+      const hh = String(now.getHours()).padStart(2, "0");
+      const mi = String(now.getMinutes()).padStart(2, "0");
+      setScheduleTime(`${hh}:${mi}`);
+    }
+    setStep(3);
+  }, [recipientMode, selectedCustomerIds.size, scheduleDate, scheduleTime]);
+
   const filteredCustomers = useMemo(() => {
     if (!customerSearch) return customerList;
     const q = customerSearch.toLowerCase();
@@ -293,7 +336,7 @@ export default function CampaignEditor() {
   const recipientCount =
     recipientMode === "all" ? customerList.length : selectedCustomerIds.size;
 
-  // --- Send campaign ---
+  // --- Send or schedule campaign ---
   const handleSend = useCallback(async () => {
     if (!app) return;
     if (!form.subject || !form.bodyHtml) {
@@ -302,6 +345,60 @@ export default function CampaignEditor() {
     }
 
     setSendConfirmOpen(false);
+
+    if (sendMode === "schedule") {
+      // Schedule campaign
+      setScheduling(true);
+      try {
+        const token = await app.idToken();
+        const scheduledAt = new Date(`${scheduleDate}T${scheduleTime}`).toISOString();
+
+        const payload = {
+          subject: form.subject,
+          bodyHtml: form.bodyHtml,
+          ctaText: form.ctaText,
+          ctaUrl: form.ctaUrl,
+          logoWidth,
+          recipientMode,
+          customerIds: recipientMode === "manual" ? Array.from(selectedCustomerIds) : undefined,
+          scheduledAt,
+          recipientCount,
+        };
+
+        const res = await fetch("/api/campaigns/scheduled", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(payload),
+        });
+
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || `HTTP ${res.status}`);
+        }
+
+        app.toast.show(`Campagna schedulata per ${formatScheduleDate(scheduleDate, scheduleTime)}`);
+        applyTemplate("blank");
+        setStep(1);
+        setRecipientMode("all");
+        setSelectedCustomerIds(new Set());
+        setSendMode("now");
+        setScheduleDate("");
+        setScheduleTime("");
+      } catch (err) {
+        app.toast.show(
+          err instanceof Error ? err.message : "Errore nella schedulazione",
+          { isError: true }
+        );
+      } finally {
+        setScheduling(false);
+      }
+      return;
+    }
+
+    // Send now
     setSending(true);
     try {
       const token = await app.idToken();
@@ -338,6 +435,7 @@ export default function CampaignEditor() {
       setStep(1);
       setRecipientMode("all");
       setSelectedCustomerIds(new Set());
+      setSendMode("now");
     } catch (err) {
       app.toast.show(
         err instanceof Error ? err.message : "Errore nell'invio",
@@ -346,7 +444,7 @@ export default function CampaignEditor() {
     } finally {
       setSending(false);
     }
-  }, [form, app, applyTemplate, logoWidth, recipientMode, selectedCustomerIds]);
+  }, [form, app, applyTemplate, logoWidth, recipientMode, selectedCustomerIds, sendMode, scheduleDate, scheduleTime, recipientCount]);
 
   // --- Product picker: fetch products ---
   const fetchProducts = useCallback(
@@ -541,7 +639,7 @@ export default function CampaignEditor() {
   return (
     <Page
       title="Editor Campagna"
-      backAction={{ onAction: () => step === 2 ? handleBackToStep1() : router.push("/") }}
+      backAction={{ onAction: () => step === 3 ? setStep(2) : step === 2 ? handleBackToStep1() : router.push("/") }}
     >
       {/* Step indicator */}
       <Layout>
@@ -553,6 +651,10 @@ export default function CampaignEditor() {
             <Text as="span" tone="subdued">&rarr;</Text>
             <Badge tone={step === 2 ? "info" : undefined}>
               {`2. Destinatari`}
+            </Badge>
+            <Text as="span" tone="subdued">&rarr;</Text>
+            <Badge tone={step === 3 ? "info" : undefined}>
+              {`3. Invio`}
             </Badge>
           </InlineStack>
         </Layout.Section>
@@ -661,13 +763,104 @@ export default function CampaignEditor() {
                   <Button onClick={handleBackToStep1}>&larr; Indietro</Button>
                   <Button
                     variant="primary"
-                    onClick={() => setSendConfirmOpen(true)}
-                    loading={sending}
+                    onClick={handleGoToStep3}
                     disabled={recipientMode === "manual" && selectedCustomerIds.size === 0}
                   >
-                    Invia campagna
+                    Continua &rarr;
                   </Button>
                 </InlineStack>
+              </BlockStack>
+            </Card>
+          </Layout.Section>
+        </Layout>
+      ) : step === 3 ? (
+        /* ──── STEP 3: Scheduling & Send ──── */
+        <Layout>
+          <Layout.Section>
+            <Card>
+              <BlockStack gap="400">
+                <Text as="h2" variant="headingMd">
+                  Pianificazione invio
+                </Text>
+                <RadioButton
+                  label="Invia ora"
+                  checked={sendMode === "now"}
+                  id="send-now"
+                  name="sendMode"
+                  onChange={() => setSendMode("now")}
+                  helpText="La campagna verrà inviata immediatamente."
+                />
+                <RadioButton
+                  label="Schedula per data e ora"
+                  checked={sendMode === "schedule"}
+                  id="send-schedule"
+                  name="sendMode"
+                  onChange={() => setSendMode("schedule")}
+                  helpText="La campagna verrà inviata automaticamente alla data e ora scelte."
+                />
+
+                {sendMode === "schedule" && (
+                  <InlineStack gap="300">
+                    <Box minWidth="180px">
+                      <TextField
+                        label="Data"
+                        type="date"
+                        value={scheduleDate}
+                        onChange={setScheduleDate}
+                        autoComplete="off"
+                      />
+                    </Box>
+                    <Box minWidth="140px">
+                      <TextField
+                        label="Ora"
+                        type="time"
+                        value={scheduleTime}
+                        onChange={setScheduleTime}
+                        autoComplete="off"
+                      />
+                    </Box>
+                  </InlineStack>
+                )}
+
+                {/* Riepilogo */}
+                <Banner tone="info">
+                  <BlockStack gap="100">
+                    <Text as="span" variant="bodyMd" fontWeight="semibold">
+                      Riepilogo
+                    </Text>
+                    <Text as="span" variant="bodyMd">
+                      {`Oggetto: ${form.subject}`}
+                    </Text>
+                    <Text as="span" variant="bodyMd">
+                      {`Destinatari: ${recipientCount}`}
+                    </Text>
+                    <Text as="span" variant="bodyMd">
+                      {sendMode === "now"
+                        ? "Invio: ora"
+                        : scheduleDate && scheduleTime
+                          ? `Invio: ${formatScheduleDate(scheduleDate, scheduleTime)}`
+                          : "Invio: seleziona data e ora"}
+                    </Text>
+                  </BlockStack>
+                </Banner>
+
+                <InlineStack gap="300">
+                  <Button onClick={() => setStep(2)}>&larr; Indietro</Button>
+                  <Button
+                    variant="primary"
+                    onClick={() => setSendConfirmOpen(true)}
+                    loading={sending || scheduling}
+                    disabled={sendMode === "schedule" && (!scheduleDate || !scheduleTime || isScheduleDatePast(scheduleDate, scheduleTime))}
+                  >
+                    {sendMode === "now" ? "Invia ora" : "Schedula campagna"}
+                  </Button>
+                </InlineStack>
+
+                {sendMode === "schedule" && scheduleDate && scheduleTime && isScheduleDatePast(scheduleDate, scheduleTime) && (
+                  <Banner tone="warning">
+                    <p>La data e ora selezionate sono nel passato. Scegli un momento futuro.</p>
+                  </Banner>
+                )}
               </BlockStack>
             </Card>
           </Layout.Section>
@@ -860,15 +1053,15 @@ export default function CampaignEditor() {
       </Layout>
       )}
 
-      {/* Send confirmation modal */}
+      {/* Send/schedule confirmation modal */}
       <Modal
         open={sendConfirmOpen}
         onClose={() => setSendConfirmOpen(false)}
-        title="Conferma invio"
+        title={sendMode === "now" ? "Conferma invio" : "Conferma schedulazione"}
         primaryAction={{
-          content: "Invia ora",
+          content: sendMode === "now" ? "Invia ora" : "Schedula",
           onAction: handleSend,
-          loading: sending,
+          loading: sending || scheduling,
         }}
         secondaryActions={[
           { content: "Annulla", onAction: () => setSendConfirmOpen(false) },
@@ -876,9 +1069,11 @@ export default function CampaignEditor() {
       >
         <Modal.Section>
           <Text as="p">
-            {recipientMode === "all"
-              ? `Stai per inviare la campagna "${form.subject}" a tutti i ${customerList.length} iscritti. Confermi?`
-              : `Stai per inviare la campagna "${form.subject}" a ${selectedCustomerIds.size} destinatar${selectedCustomerIds.size === 1 ? "io" : "i"} selezionat${selectedCustomerIds.size === 1 ? "o" : "i"}. Confermi?`}
+            {sendMode === "now"
+              ? recipientMode === "all"
+                ? `Stai per inviare la campagna "${form.subject}" a tutti i ${customerList.length} iscritti. Confermi?`
+                : `Stai per inviare la campagna "${form.subject}" a ${selectedCustomerIds.size} destinatar${selectedCustomerIds.size === 1 ? "io" : "i"} selezionat${selectedCustomerIds.size === 1 ? "o" : "i"}. Confermi?`
+              : `Stai per schedulare la campagna "${form.subject}" per ${formatScheduleDate(scheduleDate, scheduleTime)} a ${recipientCount} destinatar${recipientCount === 1 ? "io" : "i"}. Confermi?`}
           </Text>
         </Modal.Section>
       </Modal>
