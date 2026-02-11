@@ -480,6 +480,8 @@ export default function CampaignEditor() {
                   </Button>
                 </InlineStack>
               </InlineStack>
+              {/* Hidden div to measure available width */}
+              <div ref={previewContainerRef} style={{ width: "100%", height: 0, overflow: "hidden" }} />
               {!form.subject && !form.bodyHtml ? (
                 <Banner tone="info">
                   <p>
@@ -487,38 +489,48 @@ export default function CampaignEditor() {
                     dell&apos;email.
                   </p>
                 </Banner>
-              ) : (
+              ) : previewMode === "desktop" ? (
                 <div
-                  ref={previewContainerRef}
                   style={{
                     border: "1px solid #e5e7eb",
                     borderRadius: "8px",
                     overflow: "hidden",
+                    width: `${800 * previewScale}px`,
+                    height: `${700 * previewScale}px`,
                     margin: "0 auto",
-                    maxWidth: previewMode === "mobile" ? "375px" : "100%",
-                    height:
-                      previewMode === "desktop"
-                        ? `${700 * previewScale}px`
-                        : "667px",
-                    transition: "max-width 0.3s ease, height 0.3s ease",
                   }}
                 >
                   <iframe
                     srcDoc={previewHtml}
-                    title={`Anteprima email ${previewMode}`}
+                    title="Anteprima email desktop"
                     style={{
+                      width: "800px",
+                      height: "700px",
                       border: "none",
-                      ...(previewMode === "desktop"
-                        ? {
-                            width: "800px",
-                            height: "700px",
-                            transform: `scale(${previewScale})`,
-                            transformOrigin: "top left",
-                          }
-                        : {
-                            width: "100%",
-                            height: "100%",
-                          }),
+                      transform: `scale(${previewScale})`,
+                      transformOrigin: "top left",
+                    }}
+                    sandbox="allow-same-origin"
+                  />
+                </div>
+              ) : (
+                <div
+                  style={{
+                    border: "1px solid #e5e7eb",
+                    borderRadius: "8px",
+                    overflow: "hidden",
+                    maxWidth: "375px",
+                    height: "667px",
+                    margin: "0 auto",
+                  }}
+                >
+                  <iframe
+                    srcDoc={previewHtml}
+                    title="Anteprima email mobile"
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      border: "none",
                     }}
                     sandbox="allow-same-origin"
                   />
