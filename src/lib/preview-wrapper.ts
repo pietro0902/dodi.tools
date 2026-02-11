@@ -5,10 +5,11 @@ interface PreviewOptions {
   ctaUrl: string;
   storeName: string;
   logoUrl: string;
+  logoWidth?: number;
 }
 
 export function buildPreviewHtml(opts: PreviewOptions): string {
-  const { subject, bodyHtml, ctaText, ctaUrl, storeName, logoUrl } = opts;
+  const { subject, bodyHtml, ctaText, ctaUrl, storeName, logoUrl, logoWidth = 120 } = opts;
 
   const previewBody = bodyHtml.replace(/\{\{name\}\}/g, "Maria");
 
@@ -18,7 +19,7 @@ export function buildPreviewHtml(opts: PreviewOptions): string {
       : "";
 
   const logoBlock = logoUrl
-    ? `<img src="${escapeHtml(logoUrl)}" alt="${escapeHtml(storeName)}" width="120" height="40" style="margin:0 auto 12px;display:block" />`
+    ? `<img src="${escapeHtml(logoUrl)}" alt="${escapeHtml(storeName)}" width="${logoWidth}" style="margin:0 auto 12px;display:block;height:auto" />`
     : "";
 
   return `<!DOCTYPE html>

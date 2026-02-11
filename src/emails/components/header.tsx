@@ -3,17 +3,17 @@ import { Img, Section, Text } from "@react-email/components";
 interface HeaderProps {
   storeName: string;
   logoUrl?: string;
+  logoWidth?: number;
 }
 
-export function Header({ storeName, logoUrl }: HeaderProps) {
+export function Header({ storeName, logoUrl, logoWidth = 120 }: HeaderProps) {
   return (
     <Section style={container}>
       {logoUrl ? (
         <Img
           src={logoUrl}
           alt={storeName}
-          width={120}
-          height={40}
+          width={logoWidth}
           style={logo}
         />
       ) : (

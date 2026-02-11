@@ -98,6 +98,9 @@ export default function CampaignEditor() {
     null
   );
 
+  // --- Logo size ---
+  const [logoWidth, setLogoWidth] = useState(120);
+
   // --- Preview ---
   const [previewHtml, setPreviewHtml] = useState("");
   const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">("desktop");
@@ -160,13 +163,14 @@ export default function CampaignEditor() {
           ctaUrl: form.ctaUrl,
           storeName: STORE_NAME,
           logoUrl: STORE_LOGO_URL,
+          logoWidth,
         })
       );
     }, 300);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [form.subject, form.bodyHtml, form.ctaText, form.ctaUrl]);
+  }, [form.subject, form.bodyHtml, form.ctaText, form.ctaUrl, logoWidth]);
 
   // --- Template handlers ---
   const applyTemplate = useCallback((id: string) => {
@@ -228,6 +232,7 @@ export default function CampaignEditor() {
           html: form.bodyHtml,
           ctaText: form.ctaText,
           ctaUrl: form.ctaUrl,
+          logoWidth,
         }),
       });
 
@@ -247,7 +252,7 @@ export default function CampaignEditor() {
     } finally {
       setSending(false);
     }
-  }, [form, app, applyTemplate]);
+  }, [form, app, applyTemplate, logoWidth]);
 
   // --- Product picker: fetch products ---
   const fetchProducts = useCallback(
@@ -448,7 +453,7 @@ export default function CampaignEditor() {
       <Layout>
         <Layout.Section>
           <Card>
-            <BlockStack gap="200">
+            <BlockStack gap="300">
               <Select
                 label="Template"
                 options={templateOptions}
@@ -458,6 +463,20 @@ export default function CampaignEditor() {
               <Text as="p" variant="bodySm" tone="subdued">
                 {selectedDescription}
               </Text>
+              <TextField
+                label="Larghezza logo (px)"
+                type="number"
+                value={String(logoWidth)}
+                onChange={(v) => {
+                  const n = parseInt(v, 10);
+                  if (!isNaN(n) && n >= 40 && n <= 400) setLogoWidth(n);
+                }}
+                min={40}
+                max={400}
+                suffix="px"
+                autoComplete="off"
+                helpText="Min 40px, max 400px. Visibile nell'anteprima."
+              />
             </BlockStack>
           </Card>
         </Layout.Section>

@@ -12,6 +12,7 @@ interface CampaignBody {
   html?: string;
   ctaText?: string;
   ctaUrl?: string;
+  logoWidth?: number;
 }
 
 export async function POST(request: NextRequest) {
@@ -67,6 +68,7 @@ export async function POST(request: NextRequest) {
           ctaUrl: body.ctaUrl,
           storeName,
           logoUrl,
+          logoWidth: body.logoWidth,
         }),
       });
     });

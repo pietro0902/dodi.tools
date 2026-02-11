@@ -19,6 +19,7 @@ interface CampaignEmailProps {
   ctaUrl?: string;
   storeName: string;
   logoUrl?: string;
+  logoWidth?: number;
 }
 
 export default function CampaignEmail({
@@ -30,6 +31,7 @@ export default function CampaignEmail({
   ctaUrl,
   storeName = "Il Tuo Store",
   logoUrl,
+  logoWidth,
 }: CampaignEmailProps) {
   return (
     <Html>
@@ -39,7 +41,7 @@ export default function CampaignEmail({
       <Preview>{previewText}</Preview>
       <Body style={body}>
         <Container style={container}>
-          <Header storeName={storeName} logoUrl={logoUrl} />
+          <Header storeName={storeName} logoUrl={logoUrl} logoWidth={logoWidth} />
 
           <Text style={greeting}>Ciao {firstName}!</Text>
 
