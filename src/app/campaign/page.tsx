@@ -233,7 +233,7 @@ export default function CampaignEditor() {
         if (query) params.set("q", query);
         if (collection) params.set("collection", collection);
         if (sort) params.set("sort", sort);
-        params.set("limit", "20");
+        params.set("limit", "50");
 
         const res = await fetch(`/api/products/search?${params}`, {
           headers: { Authorization: `Bearer ${token}` },

@@ -259,16 +259,22 @@ async function searchProductsByCollection(
   return products;
 }
 
+// Shopify GraphQL returns MoneyV2.amount in minor units (centesimi) for this store
+function toMajorUnits(amount: string): string {
+  return (parseFloat(amount) / 100).toFixed(2);
+}
+
 function mapProduct(node: ProductNode): ShopifyProduct {
   const compareAtStr = node.compareAtPriceRange?.minVariantCompareAtPrice?.amount;
-  const compareAt = compareAtStr ? parseFloat(compareAtStr) : 0;
+  const compareAtMajor = compareAtStr ? toMajorUnits(compareAtStr) : null;
+  const compareAt = compareAtMajor ? parseFloat(compareAtMajor) : 0;
   return {
     id: node.id,
     title: node.title,
     handle: node.handle,
     imageUrl: node.featuredImage?.url || null,
-    price: node.priceRange.minVariantPrice.amount,
-    compareAtPrice: compareAt > 0 ? compareAtStr! : null,
+    price: toMajorUnits(node.priceRange.minVariantPrice.amount),
+    compareAtPrice: compareAt > 0 ? compareAtMajor : null,
     currency: node.priceRange.minVariantPrice.currencyCode,
     url: `${STORE_URL}/products/${node.handle}`,
   };
