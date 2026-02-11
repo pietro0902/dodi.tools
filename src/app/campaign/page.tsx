@@ -355,10 +355,16 @@ export default function CampaignEditor() {
     if (selected.length === 0) return;
 
     const html = buildProductGridHtml(selected, productLayout);
-    setForm((prev) => ({
-      ...prev,
-      bodyHtml: prev.bodyHtml + html,
-    }));
+    setForm((prev) => {
+      // Remove any existing product blocks before inserting new ones
+      const cleaned = prev.bodyHtml
+        .replace(/\n?<!-- Prodotti(?:\s*\(scorrimento\))? -->[\s\S]*?<\/div>\n?/g, "")
+        .trimEnd();
+      return {
+        ...prev,
+        bodyHtml: cleaned + html,
+      };
+    });
     setPickerOpen(false);
     setSelectedProducts(new Set());
     if (app) {
@@ -366,7 +372,7 @@ export default function CampaignEditor() {
         `${selected.length} prodott${selected.length === 1 ? "o inserito" : "i inseriti"}`
       );
     }
-  }, [products, selectedProducts, app]);
+  }, [products, selectedProducts, productLayout, app]);
 
   const collectionOptions = useMemo(
     () => [
