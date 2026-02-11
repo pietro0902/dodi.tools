@@ -10,7 +10,6 @@ import {
   Select,
   Button,
   BlockStack,
-  InlineGrid,
   InlineStack,
   Modal,
   Box,
@@ -382,98 +381,99 @@ export default function CampaignEditor() {
           </Card>
         </Layout.Section>
 
-        {/* Split: Editor + Preview */}
+        {/* Editor */}
         <Layout.Section>
-          <InlineGrid columns={{ xs: 1, md: ["oneHalf", "oneHalf"] }} gap="400">
-            {/* Editor */}
-            <Card>
-              <BlockStack gap="400">
-                <Text as="h2" variant="headingMd">
-                  Contenuto
-                </Text>
-                <TextField
-                  label="Oggetto"
-                  value={form.subject}
-                  onChange={handleFieldChange("subject")}
-                  placeholder="Es: Nuova collezione primavera"
-                  autoComplete="off"
-                />
-                <TextField
-                  label="Corpo HTML"
-                  value={form.bodyHtml}
-                  onChange={handleFieldChange("bodyHtml")}
-                  multiline={12}
-                  placeholder="<p>Ciao {{name}}, scopri le novità...</p>"
-                  helpText="Usa {{name}} per il nome destinatario. Usa il bottone qui sotto per inserire prodotti."
-                  autoComplete="off"
-                />
-                <Box>
-                  <Button onClick={handleOpenPicker} variant="secondary">
-                    Inserisci prodotti
-                  </Button>
-                </Box>
-                <TextField
-                  label="Testo CTA"
-                  value={form.ctaText}
-                  onChange={handleFieldChange("ctaText")}
-                  placeholder="Scopri ora"
-                  autoComplete="off"
-                />
-                <TextField
-                  label="URL CTA"
-                  value={form.ctaUrl}
-                  onChange={handleFieldChange("ctaUrl")}
-                  placeholder="https://www.dodishop.it/collections/new"
-                  autoComplete="off"
-                />
-                <Box>
-                  <Button
-                    variant="primary"
-                    onClick={handleSend}
-                    loading={sending}
-                  >
-                    Invia campagna
-                  </Button>
-                </Box>
-              </BlockStack>
-            </Card>
+          <Card>
+            <BlockStack gap="400">
+              <Text as="h2" variant="headingMd">
+                Contenuto
+              </Text>
+              <TextField
+                label="Oggetto"
+                value={form.subject}
+                onChange={handleFieldChange("subject")}
+                placeholder="Es: Nuova collezione primavera"
+                autoComplete="off"
+              />
+              <TextField
+                label="Corpo HTML"
+                value={form.bodyHtml}
+                onChange={handleFieldChange("bodyHtml")}
+                multiline={12}
+                placeholder="<p>Ciao {{name}}, scopri le novità...</p>"
+                helpText="Usa {{name}} per il nome destinatario. Usa il bottone qui sotto per inserire prodotti."
+                autoComplete="off"
+              />
+              <InlineStack gap="300">
+                <Button onClick={handleOpenPicker} variant="secondary">
+                  Inserisci prodotti
+                </Button>
+              </InlineStack>
+              <TextField
+                label="Testo CTA"
+                value={form.ctaText}
+                onChange={handleFieldChange("ctaText")}
+                placeholder="Scopri ora"
+                autoComplete="off"
+              />
+              <TextField
+                label="URL CTA"
+                value={form.ctaUrl}
+                onChange={handleFieldChange("ctaUrl")}
+                placeholder="https://www.dodishop.it/collections/new"
+                autoComplete="off"
+              />
+              <Box>
+                <Button
+                  variant="primary"
+                  onClick={handleSend}
+                  loading={sending}
+                >
+                  Invia campagna
+                </Button>
+              </Box>
+            </BlockStack>
+          </Card>
+        </Layout.Section>
 
-            {/* Preview */}
-            <Card>
-              <BlockStack gap="400">
-                <Text as="h2" variant="headingMd">
-                  Anteprima
-                </Text>
-                {!form.subject && !form.bodyHtml ? (
-                  <Banner tone="info">
-                    <p>
-                      Compila i campi a sinistra per visualizzare
-                      l&apos;anteprima dell&apos;email.
-                    </p>
-                  </Banner>
-                ) : (
-                  <div
+        {/* Desktop Preview */}
+        <Layout.Section>
+          <Card>
+            <BlockStack gap="400">
+              <Text as="h2" variant="headingMd">
+                Anteprima Desktop
+              </Text>
+              {!form.subject && !form.bodyHtml ? (
+                <Banner tone="info">
+                  <p>
+                    Compila i campi sopra per visualizzare l&apos;anteprima
+                    dell&apos;email.
+                  </p>
+                </Banner>
+              ) : (
+                <div
+                  style={{
+                    border: "1px solid #e5e7eb",
+                    borderRadius: "8px",
+                    overflow: "hidden",
+                    maxWidth: "660px",
+                    margin: "0 auto",
+                  }}
+                >
+                  <iframe
+                    srcDoc={previewHtml}
+                    title="Anteprima email desktop"
                     style={{
-                      border: "1px solid #e5e7eb",
-                      borderRadius: "8px",
-                      overflow: "hidden",
+                      width: "100%",
+                      height: "800px",
+                      border: "none",
                     }}
-                  >
-                    <iframe
-                      srcDoc={previewHtml}
-                      title="Anteprima email"
-                      style={{
-                        width: "100%",
-                        height: "600px",
-                        border: "none",
-                      }}
-                      sandbox="allow-same-origin"
-                    />
-                  </div>
-                )}
-              </BlockStack>
-            </Card>
-          </InlineGrid>
+                    sandbox="allow-same-origin"
+                  />
+                </div>
+              )}
+            </BlockStack>
+          </Card>
         </Layout.Section>
       </Layout>
 
