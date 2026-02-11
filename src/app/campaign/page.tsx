@@ -99,6 +99,7 @@ export default function CampaignEditor() {
 
   // --- Preview ---
   const [previewHtml, setPreviewHtml] = useState("");
+  const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">("desktop");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // --- Product picker ---
@@ -436,13 +437,31 @@ export default function CampaignEditor() {
           </Card>
         </Layout.Section>
 
-        {/* Desktop Preview */}
+        {/* Preview */}
         <Layout.Section>
           <Card>
             <BlockStack gap="400">
-              <Text as="h2" variant="headingMd">
-                Anteprima Desktop
-              </Text>
+              <InlineStack align="space-between" blockAlign="center">
+                <Text as="h2" variant="headingMd">
+                  Anteprima
+                </Text>
+                <InlineStack gap="200">
+                  <Button
+                    variant={previewMode === "desktop" ? "primary" : "secondary"}
+                    size="slim"
+                    onClick={() => setPreviewMode("desktop")}
+                  >
+                    Desktop
+                  </Button>
+                  <Button
+                    variant={previewMode === "mobile" ? "primary" : "secondary"}
+                    size="slim"
+                    onClick={() => setPreviewMode("mobile")}
+                  >
+                    Mobile
+                  </Button>
+                </InlineStack>
+              </InlineStack>
               {!form.subject && !form.bodyHtml ? (
                 <Banner tone="info">
                   <p>
@@ -456,16 +475,18 @@ export default function CampaignEditor() {
                     border: "1px solid #e5e7eb",
                     borderRadius: "8px",
                     overflow: "hidden",
-                    maxWidth: "660px",
+                    maxWidth: previewMode === "desktop" ? "660px" : "375px",
+                    height: previewMode === "desktop" ? "800px" : "667px",
                     margin: "0 auto",
+                    transition: "max-width 0.3s ease, height 0.3s ease",
                   }}
                 >
                   <iframe
                     srcDoc={previewHtml}
-                    title="Anteprima email desktop"
+                    title={`Anteprima email ${previewMode}`}
                     style={{
                       width: "100%",
-                      height: "800px",
+                      height: "100%",
                       border: "none",
                     }}
                     sandbox="allow-same-origin"
