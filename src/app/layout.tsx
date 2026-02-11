@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Script from "next/script";
 import Providers from "./providers";
 
 export const metadata: Metadata = {
@@ -12,13 +11,14 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const apiKey = process.env.NEXT_PUBLIC_SHOPIFY_CLIENT_ID ?? "";
+
   return (
     <html lang="it">
       <head>
-        <Script
-          src="https://cdn.shopify.com/shopifycloud/app-bridge.js"
-          data-api-key={process.env.NEXT_PUBLIC_SHOPIFY_CLIENT_ID}
-          strategy="beforeInteractive"
+        <script
+          src={`https://cdn.shopify.com/shopifycloud/app-bridge.js?apiKey=${apiKey}`}
+          data-api-key={apiKey}
         />
       </head>
       <body>
