@@ -100,6 +100,7 @@ export default function CampaignEditor() {
 
   // --- Logo size ---
   const [logoWidth, setLogoWidth] = useState(120);
+  const [logoWidthInput, setLogoWidthInput] = useState("120");
 
   // --- Preview ---
   const [previewHtml, setPreviewHtml] = useState("");
@@ -466,16 +467,22 @@ export default function CampaignEditor() {
               <TextField
                 label="Larghezza logo (px)"
                 type="number"
-                value={String(logoWidth)}
+                value={logoWidthInput}
                 onChange={(v) => {
+                  setLogoWidthInput(v);
                   const n = parseInt(v, 10);
-                  if (!isNaN(n) && n >= 40 && n <= 400) setLogoWidth(n);
+                  if (!isNaN(n) && n > 0) setLogoWidth(n);
+                }}
+                onBlur={() => {
+                  const clamped = Math.max(40, Math.min(400, logoWidth));
+                  setLogoWidth(clamped);
+                  setLogoWidthInput(String(clamped));
                 }}
                 min={40}
                 max={400}
                 suffix="px"
                 autoComplete="off"
-                helpText="Min 40px, max 400px. Visibile nell'anteprima."
+                helpText="Min 40px, max 400px"
               />
             </BlockStack>
           </Card>
