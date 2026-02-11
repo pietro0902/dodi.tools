@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = request.nextUrl;
   const query = searchParams.get("q") || undefined;
-  const collectionHandle = searchParams.get("collection") || undefined;
+  const collectionId = searchParams.get("collection") || undefined;
   const sortParam = searchParams.get("sort") || "BEST_SELLING";
   const limitParam = searchParams.get("limit");
 
@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
   const limit = Math.min(Math.max(parseInt(limitParam || "20", 10) || 20, 1), 50);
 
   try {
-    const products = await searchProducts({ query, collectionHandle, sortKey, limit });
+    const products = await searchProducts({ query, collectionId, sortKey, limit });
     return NextResponse.json({ products });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";

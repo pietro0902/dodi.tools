@@ -350,7 +350,7 @@ export default function CampaignEditor() {
   const collectionOptions = useMemo(
     () => [
       { label: "Tutte le collezioni", value: "" },
-      ...collections.map((c) => ({ label: c.title, value: c.handle })),
+      ...collections.map((c) => ({ label: c.title, value: c.id })),
     ],
     [collections]
   );

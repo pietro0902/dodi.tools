@@ -135,7 +135,7 @@ const STORE_URL = process.env.STORE_URL || "https://www.dodishop.it";
 
 interface SearchProductsOpts {
   query?: string;
-  collectionHandle?: string;
+  collectionId?: string;
   sortKey?: ProductSortKey;
   limit?: number;
 }
@@ -167,11 +167,11 @@ interface ProductNode {
 }
 
 export async function searchProducts(opts: SearchProductsOpts = {}): Promise<ShopifyProduct[]> {
-  const { query, collectionHandle, sortKey = "BEST_SELLING", limit = 20 } = opts;
+  const { query, collectionId, sortKey = "BEST_SELLING", limit = 20 } = opts;
 
   // If filtering by collection, use collection query (supports BEST_SELLING and PRICE sort)
-  if (collectionHandle) {
-    return searchProductsByCollection(collectionHandle, query, sortKey, limit);
+  if (collectionId) {
+    return searchProductsByCollection(collectionId, query, sortKey, limit);
   }
 
   // ProductSortKeys only supports: TITLE, PRODUCT_TYPE, VENDOR, INVENTORY_TOTAL,
@@ -216,7 +216,7 @@ export async function searchProducts(opts: SearchProductsOpts = {}): Promise<Sho
 }
 
 async function searchProductsByCollection(
-  collectionHandle: string,
+  collectionId: string,
   query: string | undefined,
   sortKey: ProductSortKey,
   limit: number
@@ -236,14 +236,14 @@ async function searchProductsByCollection(
       products: { edges: Array<{ node: ProductNode }> };
     } | null;
   }>(
-    `query CollectionProducts($handle: String!, $first: Int!, $sortKey: ProductCollectionSortKeys!, $reverse: Boolean!) {
-      collection(handle: $handle) {
+    `query CollectionProducts($id: ID!, $first: Int!, $sortKey: ProductCollectionSortKeys!, $reverse: Boolean!) {
+      collection(id: $id) {
         products(first: $first, sortKey: $sortKey, reverse: $reverse) {
           edges { node { ${PRODUCT_FIELDS} } }
         }
       }
     }`,
-    { handle: collectionHandle, first: limit, sortKey: collSortKey, reverse }
+    { id: collectionId, first: limit, sortKey: collSortKey, reverse }
   );
 
   if (!data.collection) return [];
