@@ -100,6 +100,8 @@ export default function CampaignEditor() {
   // --- Preview ---
   const [previewHtml, setPreviewHtml] = useState("");
   const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">("desktop");
+  const [previewScale, setPreviewScale] = useState(1);
+  const previewContainerRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // --- Product picker ---
@@ -120,6 +122,22 @@ export default function CampaignEditor() {
     () => CAMPAIGN_TEMPLATES.find((t) => t.id === selectedTemplateId)!,
     [selectedTemplateId]
   );
+
+  // --- Preview scale for desktop mode ---
+  useEffect(() => {
+    function updateScale() {
+      if (previewMode === "desktop" && previewContainerRef.current) {
+        const containerWidth = previewContainerRef.current.offsetWidth;
+        const desktopWidth = 800;
+        setPreviewScale(Math.min(1, containerWidth / desktopWidth));
+      } else {
+        setPreviewScale(1);
+      }
+    }
+    updateScale();
+    window.addEventListener("resize", updateScale);
+    return () => window.removeEventListener("resize", updateScale);
+  }, [previewMode]);
 
   // --- Preview debounce ---
   useEffect(() => {
@@ -471,13 +489,17 @@ export default function CampaignEditor() {
                 </Banner>
               ) : (
                 <div
+                  ref={previewContainerRef}
                   style={{
                     border: "1px solid #e5e7eb",
                     borderRadius: "8px",
                     overflow: "hidden",
-                    maxWidth: previewMode === "desktop" ? "100%" : "375px",
-                    height: previewMode === "desktop" ? "700px" : "667px",
                     margin: "0 auto",
+                    maxWidth: previewMode === "mobile" ? "375px" : "100%",
+                    height:
+                      previewMode === "desktop"
+                        ? `${700 * previewScale}px`
+                        : "667px",
                     transition: "max-width 0.3s ease, height 0.3s ease",
                   }}
                 >
@@ -485,9 +507,18 @@ export default function CampaignEditor() {
                     srcDoc={previewHtml}
                     title={`Anteprima email ${previewMode}`}
                     style={{
-                      width: "100%",
-                      height: "100%",
                       border: "none",
+                      ...(previewMode === "desktop"
+                        ? {
+                            width: "800px",
+                            height: "700px",
+                            transform: `scale(${previewScale})`,
+                            transformOrigin: "top left",
+                          }
+                        : {
+                            width: "100%",
+                            height: "100%",
+                          }),
                     }}
                     sandbox="allow-same-origin"
                   />
