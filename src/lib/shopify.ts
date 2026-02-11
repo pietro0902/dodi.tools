@@ -162,8 +162,8 @@ interface ProductNode {
     minVariantPrice: { amount: string; currencyCode: string };
   };
   compareAtPriceRange: {
-    minVariantCompareAtPrice: { amount: string };
-  };
+    minVariantCompareAtPrice: { amount: string } | null;
+  } | null;
 }
 
 export async function searchProducts(opts: SearchProductsOpts = {}): Promise<ShopifyProduct[]> {
@@ -260,14 +260,15 @@ async function searchProductsByCollection(
 }
 
 function mapProduct(node: ProductNode): ShopifyProduct {
-  const compareAt = parseFloat(node.compareAtPriceRange.minVariantCompareAtPrice.amount);
+  const compareAtStr = node.compareAtPriceRange?.minVariantCompareAtPrice?.amount;
+  const compareAt = compareAtStr ? parseFloat(compareAtStr) : 0;
   return {
     id: node.id,
     title: node.title,
     handle: node.handle,
     imageUrl: node.featuredImage?.url || null,
     price: node.priceRange.minVariantPrice.amount,
-    compareAtPrice: compareAt > 0 ? node.compareAtPriceRange.minVariantCompareAtPrice.amount : null,
+    compareAtPrice: compareAt > 0 ? compareAtStr! : null,
     currency: node.priceRange.minVariantPrice.currencyCode,
     url: `${STORE_URL}/products/${node.handle}`,
   };
