@@ -34,7 +34,7 @@ export function buildPreviewHtml(opts: PreviewOptions): string {
     <!-- Header -->
     <div style="text-align:center;padding:32px 0 24px;border-bottom:1px solid #e5e7eb;margin-bottom:24px">
       ${logoBlock}
-      <p style="font-size:20px;font-weight:bold;color:#111827;margin:0">${escapeHtml(storeName)}</p>
+      ${!logoUrl ? `<p style="font-size:20px;font-weight:bold;color:#111827;margin:0">${escapeHtml(storeName)}</p>` : ""}
     </div>
 
     <!-- Greeting -->

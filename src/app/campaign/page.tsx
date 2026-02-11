@@ -104,6 +104,11 @@ export default function CampaignEditor() {
   const previewContainerRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // --- Image inserter ---
+  const [imageModalOpen, setImageModalOpen] = useState(false);
+  const [imageUrl, setImageUrl] = useState("");
+  const [imageAlt, setImageAlt] = useState("");
+
   // --- Product picker ---
   const [pickerOpen, setPickerOpen] = useState(false);
   const [products, setProducts] = useState<ShopifyProduct[]>([]);
@@ -349,6 +354,21 @@ export default function CampaignEditor() {
     });
   }, []);
 
+  // --- Insert image into body ---
+  const handleInsertImage = useCallback(() => {
+    if (!imageUrl) return;
+    const alt = imageAlt || "Immagine";
+    const imgHtml = `\n<img src="${imageUrl}" alt="${alt}" style="display:block;max-width:100%;height:auto;margin:16px auto;border-radius:8px" />\n`;
+    setForm((prev) => ({
+      ...prev,
+      bodyHtml: prev.bodyHtml + imgHtml,
+    }));
+    setImageModalOpen(false);
+    setImageUrl("");
+    setImageAlt("");
+    if (app) app.toast.show("Immagine inserita");
+  }, [imageUrl, imageAlt, app]);
+
   // --- Insert selected products into body ---
   const handleInsertProducts = useCallback(() => {
     const selected = products.filter((p) => selectedProducts.has(p.id));
@@ -435,6 +455,12 @@ export default function CampaignEditor() {
               <InlineStack gap="300">
                 <Button onClick={handleOpenPicker} variant="secondary">
                   Inserisci prodotti
+                </Button>
+                <Button
+                  onClick={() => setImageModalOpen(true)}
+                  variant="secondary"
+                >
+                  Inserisci immagine
                 </Button>
               </InlineStack>
               <TextField
@@ -700,6 +726,69 @@ export default function CampaignEditor() {
                   </div>
                 ))}
               </BlockStack>
+            )}
+          </BlockStack>
+        </Modal.Section>
+      </Modal>
+
+      {/* Image inserter modal */}
+      <Modal
+        open={imageModalOpen}
+        onClose={() => setImageModalOpen(false)}
+        title="Inserisci immagine"
+        primaryAction={{
+          content: "Inserisci",
+          onAction: handleInsertImage,
+          disabled: !imageUrl,
+        }}
+        secondaryActions={[
+          { content: "Annulla", onAction: () => setImageModalOpen(false) },
+        ]}
+      >
+        <Modal.Section>
+          <BlockStack gap="400">
+            <TextField
+              label="URL immagine"
+              value={imageUrl}
+              onChange={setImageUrl}
+              placeholder="https://cdn.shopify.com/..."
+              autoComplete="off"
+              helpText="Inserisci l'URL diretto dell'immagine (JPG, PNG, GIF)"
+            />
+            <TextField
+              label="Testo alternativo"
+              value={imageAlt}
+              onChange={setImageAlt}
+              placeholder="Descrizione immagine"
+              autoComplete="off"
+              helpText="Opzionale. Viene mostrato se l'immagine non si carica."
+            />
+            {imageUrl && (
+              <Box>
+                <Text as="p" variant="bodySm" tone="subdued">
+                  Anteprima:
+                </Text>
+                <div
+                  style={{
+                    marginTop: "8px",
+                    border: "1px solid #e5e7eb",
+                    borderRadius: "8px",
+                    padding: "8px",
+                    textAlign: "center",
+                  }}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={imageUrl}
+                    alt={imageAlt || "Anteprima"}
+                    style={{
+                      maxWidth: "100%",
+                      maxHeight: "200px",
+                      borderRadius: "6px",
+                    }}
+                  />
+                </div>
+              </Box>
             )}
           </BlockStack>
         </Modal.Section>

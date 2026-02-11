@@ -8,7 +8,7 @@ interface HeaderProps {
 export function Header({ storeName, logoUrl }: HeaderProps) {
   return (
     <Section style={container}>
-      {logoUrl && (
+      {logoUrl ? (
         <Img
           src={logoUrl}
           alt={storeName}
@@ -16,8 +16,9 @@ export function Header({ storeName, logoUrl }: HeaderProps) {
           height={40}
           style={logo}
         />
+      ) : (
+        <Text style={title}>{storeName}</Text>
       )}
-      <Text style={title}>{storeName}</Text>
     </Section>
   );
 }
