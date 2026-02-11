@@ -14,7 +14,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       subscriberCount: subscribers.length,
       webhooksActive: true,
-      cronInterval: "6h",
+      cronInterval: "24h",
       resendConfigured: !!process.env.RESEND_API_KEY,
     });
   } catch (error) {
