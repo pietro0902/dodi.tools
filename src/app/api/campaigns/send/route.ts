@@ -51,15 +51,18 @@ export async function POST(request: NextRequest) {
     const logoUrl = process.env.STORE_LOGO_URL;
 
     const result = await sendInBatches(customers, 100, 1000, async (customer) => {
+      const firstName = customer.first_name || "Cliente";
+      const personalizedHtml = htmlContent.replace(/\{\{name\}\}/g, firstName);
+
       await resend.emails.send({
         from: process.env.EMAIL_FROM!,
         to: customer.email,
         subject: body.subject,
         react: CampaignEmail({
-          firstName: customer.first_name || "Cliente",
+          firstName,
           subject: body.subject,
           previewText: body.previewText || body.subject,
-          bodyHtml: htmlContent,
+          bodyHtml: personalizedHtml,
           ctaText: body.ctaText,
           ctaUrl: body.ctaUrl,
           storeName,

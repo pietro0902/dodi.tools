@@ -9,26 +9,17 @@ import {
   Badge,
   Banner,
   Button,
-  TextField,
-  FormLayout,
   BlockStack,
   InlineStack,
   Spinner,
-  Box,
 } from "@shopify/polaris";
+import { useRouter } from "next/navigation";
 
 interface DashboardStats {
   subscriberCount: number;
   webhooksActive: boolean;
   cronInterval: string;
   resendConfigured: boolean;
-}
-
-interface CampaignForm {
-  subject: string;
-  htmlBody: string;
-  ctaText: string;
-  ctaUrl: string;
 }
 
 function useShopifyGlobal() {
@@ -62,13 +53,7 @@ export default function Dashboard() {
   const [statsLoading, setStatsLoading] = useState(true);
   const [statsError, setStatsError] = useState("");
 
-  const [campaign, setCampaign] = useState<CampaignForm>({
-    subject: "",
-    htmlBody: "",
-    ctaText: "",
-    ctaUrl: "",
-  });
-  const [sending, setSending] = useState(false);
+  const router = useRouter();
 
   const fetchStats = useCallback(async () => {
     if (!app) {
@@ -98,59 +83,6 @@ export default function Dashboard() {
   useEffect(() => {
     fetchStats();
   }, [fetchStats]);
-
-  const handleCampaignChange = useCallback(
-    (field: keyof CampaignForm) => (value: string) => {
-      setCampaign((prev) => ({ ...prev, [field]: value }));
-    },
-    []
-  );
-
-  const handleSendCampaign = useCallback(async () => {
-    if (!app) return;
-    if (!campaign.subject || !campaign.htmlBody) {
-      app.toast.show("Compila almeno oggetto e corpo HTML", {
-        isError: true,
-      });
-      return;
-    }
-
-    setSending(true);
-    try {
-      const token = await app.idToken();
-      const res = await fetch("/api/campaigns/send", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          subject: campaign.subject,
-          html: campaign.htmlBody,
-          ctaText: campaign.ctaText,
-          ctaUrl: campaign.ctaUrl,
-        }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || `HTTP ${res.status}`);
-      }
-
-      const data = await res.json();
-      app.toast.show(
-        `Campagna inviata a ${data.sentTo ?? "?"} iscritti`
-      );
-      setCampaign({ subject: "", htmlBody: "", ctaText: "", ctaUrl: "" });
-    } catch (err) {
-      app.toast.show(
-        err instanceof Error ? err.message : "Errore nell'invio",
-        { isError: true }
-      );
-    } finally {
-      setSending(false);
-    }
-  }, [campaign, app]);
 
   return (
     <Page title="Email Marketing Dashboard">
@@ -235,55 +167,23 @@ export default function Dashboard() {
           </Card>
         </Layout.Section>
 
-        {/* Manual Campaign */}
+        {/* Campaign Editor */}
         <Layout.Section>
           <Card>
             <BlockStack gap="400">
               <Text as="h2" variant="headingMd">
-                Invia Campagna Manuale
+                Campagne Email
               </Text>
-              <FormLayout>
-                <TextField
-                  label="Oggetto"
-                  value={campaign.subject}
-                  onChange={handleCampaignChange("subject")}
-                  placeholder="Es: Nuova collezione primavera"
-                  autoComplete="off"
-                />
-                <TextField
-                  label="Corpo HTML"
-                  value={campaign.htmlBody}
-                  onChange={handleCampaignChange("htmlBody")}
-                  multiline={4}
-                  placeholder="<p>Ciao {{name}}, scopri le novità...</p>"
-                  autoComplete="off"
-                />
-                <FormLayout.Group>
-                  <TextField
-                    label="Testo CTA"
-                    value={campaign.ctaText}
-                    onChange={handleCampaignChange("ctaText")}
-                    placeholder="Scopri ora"
-                    autoComplete="off"
-                  />
-                  <TextField
-                    label="URL CTA"
-                    value={campaign.ctaUrl}
-                    onChange={handleCampaignChange("ctaUrl")}
-                    placeholder="https://www.dodishop.it/collections/new"
-                    autoComplete="off"
-                  />
-                </FormLayout.Group>
-              </FormLayout>
-              <Box>
-                <Button
-                  variant="primary"
-                  onClick={handleSendCampaign}
-                  loading={sending}
-                >
-                  Invia campagna
-                </Button>
-              </Box>
+              <Text as="p" variant="bodyMd">
+                Crea campagne con template brandizzati, anteprima live e
+                personalizzazione automatica del nome.
+              </Text>
+              <Button
+                variant="primary"
+                onClick={() => router.push("/campaign")}
+              >
+                Crea nuova campagna
+              </Button>
             </BlockStack>
           </Card>
         </Layout.Section>
