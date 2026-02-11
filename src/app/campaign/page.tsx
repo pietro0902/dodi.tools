@@ -24,7 +24,7 @@ import {
   type CampaignTemplate,
 } from "@/lib/campaign-templates";
 import { buildPreviewHtml } from "@/lib/preview-wrapper";
-import { buildProductGridHtml } from "@/lib/product-html";
+import { buildProductGridHtml, type ProductLayout } from "@/lib/product-html";
 import type { ShopifyProduct, ShopifyCollection } from "@/types/shopify";
 
 function useShopifyGlobal() {
@@ -116,6 +116,7 @@ export default function CampaignEditor() {
   const [selectedProducts, setSelectedProducts] = useState<Set<string>>(
     new Set()
   );
+  const [productLayout, setProductLayout] = useState<ProductLayout>("grid");
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const currentTemplate = useMemo(
@@ -134,7 +135,8 @@ export default function CampaignEditor() {
         setPreviewScale(1);
       }
     }
-    updateScale();
+    // Delay measurement to ensure DOM has updated after mode switch
+    requestAnimationFrame(() => requestAnimationFrame(updateScale));
     window.addEventListener("resize", updateScale);
     return () => window.removeEventListener("resize", updateScale);
   }, [previewMode]);
@@ -299,6 +301,7 @@ export default function CampaignEditor() {
     setSearchQuery("");
     setSelectedCollection("");
     setSelectedSort("BEST_SELLING");
+    setProductLayout("grid");
     fetchCollections();
     fetchProducts(undefined, undefined, "BEST_SELLING");
   }, [fetchCollections, fetchProducts]);
@@ -351,7 +354,7 @@ export default function CampaignEditor() {
     const selected = products.filter((p) => selectedProducts.has(p.id));
     if (selected.length === 0) return;
 
-    const html = buildProductGridHtml(selected);
+    const html = buildProductGridHtml(selected, productLayout);
     setForm((prev) => ({
       ...prev,
       bodyHtml: prev.bodyHtml + html,
@@ -589,8 +592,8 @@ export default function CampaignEditor() {
               clearButton
               onClearButtonClick={() => handleSearchChange("")}
             />
-            <InlineStack gap="300" wrap={false}>
-              <Box minWidth="200px">
+            <InlineStack gap="300" wrap>
+              <Box minWidth="180px">
                 <Select
                   label="Collezione"
                   options={collectionOptions}
@@ -598,12 +601,23 @@ export default function CampaignEditor() {
                   onChange={handleCollectionChange}
                 />
               </Box>
-              <Box minWidth="200px">
+              <Box minWidth="180px">
                 <Select
                   label="Ordina per"
                   options={sortOptions}
                   value={selectedSort}
                   onChange={handleSortChange}
+                />
+              </Box>
+              <Box minWidth="180px">
+                <Select
+                  label="Layout"
+                  options={[
+                    { label: "Griglia", value: "grid" },
+                    { label: "Scorrimento", value: "scroll" },
+                  ]}
+                  value={productLayout}
+                  onChange={(v) => setProductLayout(v as ProductLayout)}
                 />
               </Box>
             </InlineStack>
