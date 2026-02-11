@@ -29,7 +29,7 @@ function buildProductCard(product: ShopifyProduct): string {
 
   return `<div style="border:1px solid #e5e7eb;border-radius:8px;padding:12px;background:#ffffff;text-align:center">
   ${imgBlock}
-  <p style="font-size:14px;font-weight:600;color:#111827;margin:8px 0 4px">${esc(product.title)}</p>
+  <p style="font-size:14px;font-weight:600;color:#111827;margin:8px 0 4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(product.title)}</p>
   <p style="font-size:15px;color:#111827;font-weight:700;margin:0 0 12px">${priceDisplay}${compareBlock}</p>
   <a href="${esc(product.url)}" style="display:inline-block;background-color:#111827;color:#ffffff;font-size:13px;font-weight:600;text-decoration:none;padding:8px 20px;border-radius:6px">Acquista</a>
 </div>`;
