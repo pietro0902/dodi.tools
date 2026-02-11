@@ -33,9 +33,10 @@ export async function GET(request: NextRequest) {
     const products = await searchProducts({ query, collectionHandle, sortKey, limit });
     return NextResponse.json({ products });
   } catch (error) {
-    console.error("Product search error:", error);
+    const message = error instanceof Error ? error.message : "Unknown error";
+    console.error("Product search error:", message);
     return NextResponse.json(
-      { error: "Failed to fetch products" },
+      { error: `Failed to fetch products: ${message}` },
       { status: 500 }
     );
   }

@@ -143,14 +143,17 @@ interface SearchProductsOpts {
 export async function searchProducts(opts: SearchProductsOpts = {}): Promise<ShopifyProduct[]> {
   const { query, collectionHandle, sortKey = "BEST_SELLING", limit = 20 } = opts;
 
-  // If filtering by collection, use collection query
+  // If filtering by collection, use collection query (supports BEST_SELLING and PRICE sort)
   if (collectionHandle) {
     return searchProductsByCollection(collectionHandle, query, sortKey, limit);
   }
 
-  // Map our sort keys to GraphQL ProductSortKeys
-  const reverse = sortKey === "PRICE_DESC";
-  const gqlSortKey = sortKey === "PRICE_DESC" ? "PRICE" : sortKey;
+  // ProductSortKeys only supports: TITLE, PRODUCT_TYPE, VENDOR, INVENTORY_TOTAL,
+  // UPDATED_AT, CREATED_AT, PUBLISHED_AT, RELEVANCE, ID.
+  // BEST_SELLING and PRICE are NOT valid here — we fetch and sort client-side.
+  const needsClientSort = ["BEST_SELLING", "PRICE", "PRICE_DESC"].includes(sortKey);
+  const gqlSortKey = needsClientSort ? "UPDATED_AT" : sortKey === "CREATED_AT" ? "CREATED_AT" : sortKey;
+  const reverse = needsClientSort ? true : false; // UPDATED_AT desc = newest first as fallback
 
   const searchQuery = query ? `title:*${query}*` : "";
 
@@ -190,10 +193,19 @@ export async function searchProducts(opts: SearchProductsOpts = {}): Promise<Sho
         }
       }
     }`,
-    { first: limit, query: searchQuery, sortKey: gqlSortKey, reverse }
+    { first: needsClientSort ? 50 : limit, query: searchQuery, sortKey: gqlSortKey, reverse }
   );
 
-  return data.products.edges.map(({ node }) => mapProduct(node));
+  let products = data.products.edges.map(({ node }) => mapProduct(node));
+
+  // Client-side sort for PRICE / PRICE_DESC (BEST_SELLING keeps server order as-is)
+  if (sortKey === "PRICE") {
+    products.sort((a, b) => parseFloat(a.price) - parseFloat(b.price));
+  } else if (sortKey === "PRICE_DESC") {
+    products.sort((a, b) => parseFloat(b.price) - parseFloat(a.price));
+  }
+
+  return products.slice(0, limit);
 }
 
 async function searchProductsByCollection(
@@ -205,10 +217,10 @@ async function searchProductsByCollection(
   const reverse = sortKey === "PRICE_DESC";
   const gqlSortKey = sortKey === "PRICE_DESC" ? "PRICE" : sortKey;
 
-  // Collection products have a different sort key enum
+  // ProductCollectionSortKeys: MANUAL, BEST_SELLING, ALPHA, PRICE, CREATED, COLLECTION_DEFAULT, RELEVANCE, ID
   const collSortKey = gqlSortKey === "BEST_SELLING" ? "BEST_SELLING"
     : gqlSortKey === "PRICE" ? "PRICE"
-    : gqlSortKey === "TITLE" ? "TITLE"
+    : gqlSortKey === "TITLE" ? "ALPHA"
     : gqlSortKey === "CREATED_AT" ? "CREATED"
     : "BEST_SELLING";
 
