@@ -18,6 +18,7 @@ export default function RootLayout({
         <Script
           src="https://cdn.shopify.com/shopifycloud/app-bridge.js"
           data-api-key={process.env.NEXT_PUBLIC_SHOPIFY_CLIENT_ID}
+          strategy="beforeInteractive"
         />
       </head>
       <body>

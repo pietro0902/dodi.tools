@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   Page,
   Layout,
@@ -31,16 +31,33 @@ interface CampaignForm {
   ctaUrl: string;
 }
 
-function getShopifyGlobal() {
-  if (typeof window !== "undefined" && typeof shopify !== "undefined") {
-    return shopify;
-  }
-  return null;
+function useShopifyGlobal() {
+  const [bridge, setBridge] = useState<typeof shopify | null>(
+    typeof window !== "undefined" && typeof shopify !== "undefined"
+      ? shopify
+      : null
+  );
+
+  useEffect(() => {
+    if (bridge) return;
+    // Poll briefly in case the script loads after first render
+    let attempts = 0;
+    const interval = setInterval(() => {
+      if (typeof shopify !== "undefined") {
+        setBridge(shopify);
+        clearInterval(interval);
+      } else if (++attempts >= 20) {
+        clearInterval(interval);
+      }
+    }, 100);
+    return () => clearInterval(interval);
+  }, [bridge]);
+
+  return bridge;
 }
 
 export default function Dashboard() {
-  const shopify = useMemo(() => getShopifyGlobal(), []);
-  const isEmbedded = !!shopify;
+  const app = useShopifyGlobal();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
   const [statsError, setStatsError] = useState("");
@@ -54,7 +71,7 @@ export default function Dashboard() {
   const [sending, setSending] = useState(false);
 
   const fetchStats = useCallback(async () => {
-    if (!shopify) {
+    if (!app) {
       setStatsLoading(false);
       setStatsError("Apri questa app da Shopify Admin per visualizzare i dati.");
       return;
@@ -62,7 +79,7 @@ export default function Dashboard() {
     setStatsLoading(true);
     setStatsError("");
     try {
-      const token = await shopify.idToken();
+      const token = await app.idToken();
       const res = await fetch("/api/dashboard/stats", {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -76,7 +93,7 @@ export default function Dashboard() {
     } finally {
       setStatsLoading(false);
     }
-  }, [shopify]);
+  }, [app]);
 
   useEffect(() => {
     fetchStats();
@@ -90,9 +107,9 @@ export default function Dashboard() {
   );
 
   const handleSendCampaign = useCallback(async () => {
-    if (!shopify) return;
+    if (!app) return;
     if (!campaign.subject || !campaign.htmlBody) {
-      shopify.toast.show("Compila almeno oggetto e corpo HTML", {
+      app.toast.show("Compila almeno oggetto e corpo HTML", {
         isError: true,
       });
       return;
@@ -100,7 +117,7 @@ export default function Dashboard() {
 
     setSending(true);
     try {
-      const token = await shopify.idToken();
+      const token = await app.idToken();
       const res = await fetch("/api/campaigns/send", {
         method: "POST",
         headers: {
@@ -121,19 +138,19 @@ export default function Dashboard() {
       }
 
       const data = await res.json();
-      shopify.toast.show(
+      app.toast.show(
         `Campagna inviata a ${data.sentTo ?? "?"} iscritti`
       );
       setCampaign({ subject: "", htmlBody: "", ctaText: "", ctaUrl: "" });
     } catch (err) {
-      shopify.toast.show(
+      app.toast.show(
         err instanceof Error ? err.message : "Errore nell'invio",
         { isError: true }
       );
     } finally {
       setSending(false);
     }
-  }, [campaign, shopify]);
+  }, [campaign, app]);
 
   return (
     <Page title="Email Marketing Dashboard">
