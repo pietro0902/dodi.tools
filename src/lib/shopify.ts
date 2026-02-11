@@ -149,7 +149,7 @@ const PRODUCT_FIELDS = `
     minVariantPrice { amount currencyCode }
   }
   compareAtPriceRange {
-    minVariantPrice { amount }
+    minVariantCompareAtPrice { amount }
   }
 `;
 
@@ -162,7 +162,7 @@ interface ProductNode {
     minVariantPrice: { amount: string; currencyCode: string };
   };
   compareAtPriceRange: {
-    minVariantPrice: { amount: string };
+    minVariantCompareAtPrice: { amount: string };
   };
 }
 
@@ -260,14 +260,14 @@ async function searchProductsByCollection(
 }
 
 function mapProduct(node: ProductNode): ShopifyProduct {
-  const compareAt = parseFloat(node.compareAtPriceRange.minVariantPrice.amount);
+  const compareAt = parseFloat(node.compareAtPriceRange.minVariantCompareAtPrice.amount);
   return {
     id: node.id,
     title: node.title,
     handle: node.handle,
     imageUrl: node.featuredImage?.url || null,
     price: node.priceRange.minVariantPrice.amount,
-    compareAtPrice: compareAt > 0 ? node.compareAtPriceRange.minVariantPrice.amount : null,
+    compareAtPrice: compareAt > 0 ? node.compareAtPriceRange.minVariantCompareAtPrice.amount : null,
     currency: node.priceRange.minVariantPrice.currencyCode,
     url: `${STORE_URL}/products/${node.handle}`,
   };
