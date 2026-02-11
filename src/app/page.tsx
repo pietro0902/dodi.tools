@@ -22,6 +22,11 @@ interface DashboardStats {
   resendConfigured: boolean;
 }
 
+interface AutomationStatus {
+  welcome: { enabled: boolean };
+  abandonedCart: { enabled: boolean };
+}
+
 function useShopifyGlobal() {
   const [bridge, setBridge] = useState<typeof shopify | null>(
     typeof window !== "undefined" && typeof shopify !== "undefined"
@@ -52,6 +57,7 @@ export default function Dashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
   const [statsError, setStatsError] = useState("");
+  const [automationStatus, setAutomationStatus] = useState<AutomationStatus | null>(null);
 
   const router = useRouter();
 
@@ -71,6 +77,22 @@ export default function Dashboard() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setStats(data);
+
+      // Also fetch automation settings status
+      try {
+        const autoRes = await fetch("/api/automations/settings", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (autoRes.ok) {
+          const autoData = await autoRes.json();
+          setAutomationStatus({
+            welcome: { enabled: autoData.welcome?.enabled ?? true },
+            abandonedCart: { enabled: autoData.abandonedCart?.enabled ?? true },
+          });
+        }
+      } catch {
+        // Non-critical, ignore
+      }
     } catch (err) {
       setStatsError(
         err instanceof Error ? err.message : "Errore nel caricamento"
@@ -184,6 +206,44 @@ export default function Dashboard() {
               >
                 Crea nuova campagna
               </Button>
+            </BlockStack>
+          </Card>
+        </Layout.Section>
+
+        {/* Automations */}
+        <Layout.Section>
+          <Card>
+            <BlockStack gap="400">
+              <Text as="h2" variant="headingMd">
+                Automazioni
+              </Text>
+              {statsLoading ? (
+                <InlineStack align="center">
+                  <Spinner size="small" />
+                </InlineStack>
+              ) : (
+                <BlockStack gap="300">
+                  <InlineStack align="space-between">
+                    <Text as="span" variant="bodyMd">
+                      Email di benvenuto
+                    </Text>
+                    <Badge tone={automationStatus?.welcome.enabled ? "success" : "critical"}>
+                      {automationStatus?.welcome.enabled ? "Attiva" : "Disattiva"}
+                    </Badge>
+                  </InlineStack>
+                  <InlineStack align="space-between">
+                    <Text as="span" variant="bodyMd">
+                      Carrello abbandonato
+                    </Text>
+                    <Badge tone={automationStatus?.abandonedCart.enabled ? "success" : "critical"}>
+                      {automationStatus?.abandonedCart.enabled ? "Attiva" : "Disattiva"}
+                    </Badge>
+                  </InlineStack>
+                  <Button onClick={() => router.push("/automations")}>
+                    Gestisci automazioni
+                  </Button>
+                </BlockStack>
+              )}
             </BlockStack>
           </Card>
         </Layout.Section>

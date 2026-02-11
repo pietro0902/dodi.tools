@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyShopifyWebhook } from "@/lib/verify-webhook";
 import { hasMarketingConsent } from "@/lib/consent";
 import { getResendClient } from "@/lib/resend";
-import WelcomeEmail from "@/emails/welcome";
+import { getAutomationSettings } from "@/lib/automation-settings";
+import CampaignEmail from "@/emails/campaign";
 import type { CustomerWebhookPayload } from "@/types/shopify";
 
 export async function POST(request: NextRequest) {
@@ -27,19 +28,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const settings = await getAutomationSettings();
+
+    if (!settings.welcome.enabled) {
+      return NextResponse.json(
+        { skipped: "Welcome automation disabled" },
+        { status: 200 }
+      );
+    }
+
     const resend = getResendClient();
     const storeName = process.env.STORE_NAME || "Store";
-    const storeUrl = process.env.STORE_URL || "";
     const logoUrl = process.env.STORE_LOGO_URL;
+    const firstName = customer.first_name || "Cliente";
+
+    const personalizedSubject = settings.welcome.subject.replace(/\{\{name\}\}/g, firstName);
+    const personalizedBody = settings.welcome.bodyHtml.replace(/\{\{name\}\}/g, firstName);
 
     await resend.emails.send({
       from: process.env.EMAIL_FROM!,
       to: customer.email,
-      subject: `Benvenuto in ${storeName}!`,
-      react: WelcomeEmail({
-        firstName: customer.first_name || "Cliente",
+      subject: personalizedSubject,
+      react: CampaignEmail({
+        firstName,
+        subject: personalizedSubject,
+        previewText: personalizedSubject,
+        bodyHtml: personalizedBody,
         storeName,
-        storeUrl,
         logoUrl,
       }),
     });

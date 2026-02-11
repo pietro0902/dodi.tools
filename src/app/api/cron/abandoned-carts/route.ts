@@ -3,7 +3,9 @@ import { getAbandonedCheckouts } from "@/lib/shopify";
 import { hasMarketingConsent } from "@/lib/consent";
 import { getResendClient } from "@/lib/resend";
 import { sendInBatches } from "@/lib/rate-limit";
-import AbandonedCartEmail from "@/emails/abandoned-cart";
+import { getAutomationSettings } from "@/lib/automation-settings";
+import { buildCartItemsHtml } from "@/lib/cart-html";
+import CampaignEmail from "@/emails/campaign";
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,12 +16,21 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const settings = await getAutomationSettings();
+
+    if (!settings.abandonedCart.enabled) {
+      return NextResponse.json({
+        sent: 0,
+        message: "Abandoned cart automation disabled",
+      });
+    }
+
     const checkouts = await getAbandonedCheckouts();
     const now = Date.now();
-    const FOUR_HOURS = 4 * 60 * 60 * 1000;
-    const FORTY_EIGHT_HOURS = 48 * 60 * 60 * 1000;
+    const delayMs = settings.abandonedCart.delayHours * 60 * 60 * 1000;
+    const maxAgeMs = settings.abandonedCart.maxAgeHours * 60 * 60 * 1000;
 
-    // Filter: consent, time window 4-48h, deduplicate by email
+    // Filter: consent, time window, deduplicate by email
     const seenEmails = new Set<string>();
     const eligible = checkouts.filter((checkout) => {
       if (!checkout.email) return false;
@@ -27,7 +38,7 @@ export async function GET(request: NextRequest) {
         return false;
 
       const age = now - new Date(checkout.created_at).getTime();
-      if (age < FOUR_HOURS || age > FORTY_EIGHT_HOURS) return false;
+      if (age < delayMs || age > maxAgeMs) return false;
 
       const emailLower = checkout.email.toLowerCase();
       if (seenEmails.has(emailLower)) return false;
@@ -45,21 +56,40 @@ export async function GET(request: NextRequest) {
     const logoUrl = process.env.STORE_LOGO_URL;
 
     const result = await sendInBatches(eligible, 100, 1000, async (checkout) => {
+      const firstName = checkout.customer?.first_name || "Cliente";
+
+      const personalizedSubject = settings.abandonedCart.subject.replace(
+        /\{\{name\}\}/g,
+        firstName
+      );
+      const personalizedIntro = settings.abandonedCart.bodyHtml.replace(
+        /\{\{name\}\}/g,
+        firstName
+      );
+
+      const cartHtml = buildCartItemsHtml(
+        checkout.line_items.map((item) => ({
+          title: item.title,
+          quantity: item.quantity,
+          price: item.price,
+          variantTitle: item.variant_title,
+        })),
+        checkout.total_price,
+        checkout.currency,
+        checkout.abandoned_checkout_url
+      );
+
+      const fullBodyHtml = personalizedIntro + cartHtml;
+
       await resend.emails.send({
         from: process.env.EMAIL_FROM!,
         to: checkout.email,
-        subject: `Hai dimenticato qualcosa in ${storeName}!`,
-        react: AbandonedCartEmail({
-          firstName: checkout.customer?.first_name || "Cliente",
-          checkoutUrl: checkout.abandoned_checkout_url,
-          totalPrice: checkout.total_price,
-          currency: checkout.currency,
-          lineItems: checkout.line_items.map((item) => ({
-            title: item.title,
-            quantity: item.quantity,
-            price: item.price,
-            variantTitle: item.variant_title,
-          })),
+        subject: personalizedSubject,
+        react: CampaignEmail({
+          firstName,
+          subject: personalizedSubject,
+          previewText: personalizedSubject,
+          bodyHtml: fullBodyHtml,
           storeName,
           logoUrl,
         }),

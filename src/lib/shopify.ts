@@ -112,7 +112,7 @@ function getGraphqlUrl(): string {
   return `https://${domain}/admin/api/2024-10/graphql.json`;
 }
 
-async function graphqlQuery<T>(query: string, variables?: Record<string, unknown>): Promise<T> {
+export async function graphqlQuery<T>(query: string, variables?: Record<string, unknown>): Promise<T> {
   const headers = await getHeaders();
   const res = await fetch(getGraphqlUrl(), {
     method: "POST",

@@ -18,6 +18,8 @@ import {
   Checkbox,
   Thumbnail,
   DropZone,
+  RadioButton,
+  Badge,
 } from "@shopify/polaris";
 import { useRouter } from "next/navigation";
 import {
@@ -27,6 +29,13 @@ import {
 import { buildPreviewHtml } from "@/lib/preview-wrapper";
 import { buildProductGridHtml, type ProductLayout } from "@/lib/product-html";
 import type { ShopifyProduct, ShopifyCollection } from "@/types/shopify";
+
+interface CustomerListItem {
+  id: number;
+  email: string;
+  first_name: string;
+  last_name: string;
+}
 
 function useShopifyGlobal() {
   const [bridge, setBridge] = useState<typeof shopify | null>(
@@ -97,6 +106,15 @@ export default function CampaignEditor() {
   const [pendingTemplateId, setPendingTemplateId] = useState<string | null>(
     null
   );
+
+  // --- Step flow ---
+  const [step, setStep] = useState<1 | 2>(1);
+  const [recipientMode, setRecipientMode] = useState<"all" | "manual">("all");
+  const [customerList, setCustomerList] = useState<CustomerListItem[]>([]);
+  const [customersLoading, setCustomersLoading] = useState(false);
+  const [selectedCustomerIds, setSelectedCustomerIds] = useState<Set<number>>(new Set());
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [sendConfirmOpen, setSendConfirmOpen] = useState(false);
 
   // --- Logo size ---
   const [logoWidth, setLogoWidth] = useState(120);
@@ -211,6 +229,70 @@ export default function CampaignEditor() {
     []
   );
 
+  // --- Step 2: fetch customers ---
+  const fetchCustomers = useCallback(async () => {
+    if (!app) return;
+    setCustomersLoading(true);
+    try {
+      const token = await app.idToken();
+      const res = await fetch("/api/customers/list", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setCustomerList(data.customers || []);
+    } catch (err) {
+      console.error("Customer fetch error:", err);
+      if (app) {
+        app.toast.show(
+          err instanceof Error ? err.message : "Errore nel caricamento clienti",
+          { isError: true }
+        );
+      }
+    } finally {
+      setCustomersLoading(false);
+    }
+  }, [app]);
+
+  const handleGoToStep2 = useCallback(() => {
+    if (!form.subject || !form.bodyHtml) {
+      if (app) app.toast.show("Compila almeno oggetto e corpo HTML", { isError: true });
+      return;
+    }
+    setStep(2);
+    fetchCustomers();
+  }, [form.subject, form.bodyHtml, app, fetchCustomers]);
+
+  const handleBackToStep1 = useCallback(() => {
+    setStep(1);
+  }, []);
+
+  const filteredCustomers = useMemo(() => {
+    if (!customerSearch) return customerList;
+    const q = customerSearch.toLowerCase();
+    return customerList.filter(
+      (c) =>
+        c.email.toLowerCase().includes(q) ||
+        (c.first_name && c.first_name.toLowerCase().includes(q)) ||
+        (c.last_name && c.last_name.toLowerCase().includes(q))
+    );
+  }, [customerList, customerSearch]);
+
+  const handleToggleCustomer = useCallback((id: number) => {
+    setSelectedCustomerIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }, []);
+
+  const recipientCount =
+    recipientMode === "all" ? customerList.length : selectedCustomerIds.size;
+
   // --- Send campaign ---
   const handleSend = useCallback(async () => {
     if (!app) return;
@@ -219,22 +301,30 @@ export default function CampaignEditor() {
       return;
     }
 
+    setSendConfirmOpen(false);
     setSending(true);
     try {
       const token = await app.idToken();
+
+      const payload: Record<string, unknown> = {
+        subject: form.subject,
+        html: form.bodyHtml,
+        ctaText: form.ctaText,
+        ctaUrl: form.ctaUrl,
+        logoWidth,
+      };
+
+      if (recipientMode === "manual" && selectedCustomerIds.size > 0) {
+        payload.customerIds = Array.from(selectedCustomerIds);
+      }
+
       const res = await fetch("/api/campaigns/send", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          subject: form.subject,
-          html: form.bodyHtml,
-          ctaText: form.ctaText,
-          ctaUrl: form.ctaUrl,
-          logoWidth,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
@@ -245,6 +335,9 @@ export default function CampaignEditor() {
       const data = await res.json();
       app.toast.show(`Campagna inviata a ${data.sentTo ?? "?"} iscritti`);
       applyTemplate("blank");
+      setStep(1);
+      setRecipientMode("all");
+      setSelectedCustomerIds(new Set());
     } catch (err) {
       app.toast.show(
         err instanceof Error ? err.message : "Errore nell'invio",
@@ -253,7 +346,7 @@ export default function CampaignEditor() {
     } finally {
       setSending(false);
     }
-  }, [form, app, applyTemplate, logoWidth]);
+  }, [form, app, applyTemplate, logoWidth, recipientMode, selectedCustomerIds]);
 
   // --- Product picker: fetch products ---
   const fetchProducts = useCallback(
@@ -448,10 +541,142 @@ export default function CampaignEditor() {
   return (
     <Page
       title="Editor Campagna"
-      backAction={{ onAction: () => router.push("/") }}
+      backAction={{ onAction: () => step === 2 ? handleBackToStep1() : router.push("/") }}
     >
-      {/* Template selector */}
+      {/* Step indicator */}
       <Layout>
+        <Layout.Section>
+          <InlineStack gap="400" align="center">
+            <Badge tone={step === 1 ? "info" : undefined}>
+              {`1. Contenuto`}
+            </Badge>
+            <Text as="span" tone="subdued">&rarr;</Text>
+            <Badge tone={step === 2 ? "info" : undefined}>
+              {`2. Destinatari`}
+            </Badge>
+          </InlineStack>
+        </Layout.Section>
+      </Layout>
+
+      {step === 2 ? (
+        /* ──── STEP 2: Recipients & Send ──── */
+        <Layout>
+          <Layout.Section>
+            <Card>
+              <BlockStack gap="400">
+                <Text as="h2" variant="headingMd">
+                  Destinatari
+                </Text>
+                <RadioButton
+                  label={`Tutti gli iscritti${customerList.length > 0 ? ` (${customerList.length})` : ""}`}
+                  checked={recipientMode === "all"}
+                  id="recipients-all"
+                  name="recipientMode"
+                  onChange={() => setRecipientMode("all")}
+                  helpText="L'email verrà inviata a tutti i clienti con consenso marketing attivo."
+                />
+                <RadioButton
+                  label="Seleziona manualmente"
+                  checked={recipientMode === "manual"}
+                  id="recipients-manual"
+                  name="recipientMode"
+                  onChange={() => setRecipientMode("manual")}
+                  helpText="Scegli a chi inviare dalla lista sottostante."
+                />
+
+                {recipientMode === "manual" && (
+                  <BlockStack gap="300">
+                    <TextField
+                      label="Cerca per nome o email"
+                      value={customerSearch}
+                      onChange={setCustomerSearch}
+                      placeholder="es. mario@email.com"
+                      autoComplete="off"
+                      clearButton
+                      onClearButtonClick={() => setCustomerSearch("")}
+                    />
+
+                    {customersLoading ? (
+                      <InlineStack align="center">
+                        <Spinner size="large" />
+                      </InlineStack>
+                    ) : filteredCustomers.length === 0 ? (
+                      <Banner tone="warning">
+                        <p>Nessun cliente trovato.</p>
+                      </Banner>
+                    ) : (
+                      <BlockStack gap="100">
+                        <InlineStack align="space-between">
+                          <Text as="span" variant="bodySm" tone="subdued">
+                            {filteredCustomers.length} client{filteredCustomers.length === 1 ? "e" : "i"}
+                          </Text>
+                          <Text as="span" variant="bodySm" tone="subdued">
+                            {selectedCustomerIds.size} selezionat{selectedCustomerIds.size === 1 ? "o" : "i"}
+                          </Text>
+                        </InlineStack>
+                        <div style={{ maxHeight: "400px", overflowY: "auto", border: "1px solid #e5e7eb", borderRadius: "8px" }}>
+                          {filteredCustomers.map((c) => (
+                            <div
+                              key={c.id}
+                              style={{
+                                padding: "10px 12px",
+                                borderBottom: "1px solid #f3f4f6",
+                                cursor: "pointer",
+                                backgroundColor: selectedCustomerIds.has(c.id) ? "#f0f5ff" : "transparent",
+                              }}
+                              onClick={() => handleToggleCustomer(c.id)}
+                            >
+                              <InlineStack gap="300" blockAlign="center">
+                                <Checkbox
+                                  label=""
+                                  checked={selectedCustomerIds.has(c.id)}
+                                  onChange={() => handleToggleCustomer(c.id)}
+                                />
+                                <BlockStack gap="050">
+                                  <Text as="span" variant="bodyMd" fontWeight="semibold">
+                                    {[c.first_name, c.last_name].filter(Boolean).join(" ") || "—"}
+                                  </Text>
+                                  <Text as="span" variant="bodySm" tone="subdued">
+                                    {c.email}
+                                  </Text>
+                                </BlockStack>
+                              </InlineStack>
+                            </div>
+                          ))}
+                        </div>
+                      </BlockStack>
+                    )}
+                  </BlockStack>
+                )}
+
+                <Banner tone="info">
+                  <p>
+                    {recipientMode === "all"
+                      ? `Invierai a ${customerList.length} destinatar${customerList.length === 1 ? "io" : "i"}`
+                      : `Invierai a ${selectedCustomerIds.size} destinatar${selectedCustomerIds.size === 1 ? "io" : "i"}`}
+                  </p>
+                </Banner>
+
+                <InlineStack gap="300">
+                  <Button onClick={handleBackToStep1}>&larr; Indietro</Button>
+                  <Button
+                    variant="primary"
+                    onClick={() => setSendConfirmOpen(true)}
+                    loading={sending}
+                    disabled={recipientMode === "manual" && selectedCustomerIds.size === 0}
+                  >
+                    Invia campagna
+                  </Button>
+                </InlineStack>
+              </BlockStack>
+            </Card>
+          </Layout.Section>
+        </Layout>
+      ) : (
+      /* ──── STEP 1: Content editor (existing) ──── */
+      <Layout>
+
+      {/* Template selector */}
         <Layout.Section>
           <Card>
             <BlockStack gap="300">
@@ -539,10 +764,9 @@ export default function CampaignEditor() {
               <Box>
                 <Button
                   variant="primary"
-                  onClick={handleSend}
-                  loading={sending}
+                  onClick={handleGoToStep2}
                 >
-                  Invia campagna
+                  Continua &rarr;
                 </Button>
               </Box>
             </BlockStack>
@@ -634,6 +858,30 @@ export default function CampaignEditor() {
           </Card>
         </Layout.Section>
       </Layout>
+      )}
+
+      {/* Send confirmation modal */}
+      <Modal
+        open={sendConfirmOpen}
+        onClose={() => setSendConfirmOpen(false)}
+        title="Conferma invio"
+        primaryAction={{
+          content: "Invia ora",
+          onAction: handleSend,
+          loading: sending,
+        }}
+        secondaryActions={[
+          { content: "Annulla", onAction: () => setSendConfirmOpen(false) },
+        ]}
+      >
+        <Modal.Section>
+          <Text as="p">
+            {recipientMode === "all"
+              ? `Stai per inviare la campagna "${form.subject}" a tutti i ${customerList.length} iscritti. Confermi?`
+              : `Stai per inviare la campagna "${form.subject}" a ${selectedCustomerIds.size} destinatar${selectedCustomerIds.size === 1 ? "io" : "i"} selezionat${selectedCustomerIds.size === 1 ? "o" : "i"}. Confermi?`}
+          </Text>
+        </Modal.Section>
+      </Modal>
 
       {/* Confirm template switch modal */}
       <Modal

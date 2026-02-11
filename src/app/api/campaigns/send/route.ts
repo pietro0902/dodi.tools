@@ -13,6 +13,7 @@ interface CampaignBody {
   ctaText?: string;
   ctaUrl?: string;
   logoWidth?: number;
+  customerIds?: number[];
 }
 
 export async function POST(request: NextRequest) {
@@ -38,7 +39,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const customers = await getOptInCustomers();
+    let customers = await getOptInCustomers();
+
+    // Filter to specific customer IDs if provided
+    if (body.customerIds && body.customerIds.length > 0) {
+      const idSet = new Set(body.customerIds);
+      customers = customers.filter((c) => idSet.has(c.id));
+    }
 
     if (customers.length === 0) {
       return NextResponse.json({
