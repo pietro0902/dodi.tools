@@ -38,9 +38,6 @@ export function buildPreviewHtml(opts: PreviewOptions): string {
       ${!logoUrl ? `<p style="font-size:20px;font-weight:bold;color:#111827;margin:0">${escapeHtml(storeName)}</p>` : ""}
     </div>
 
-    <!-- Greeting -->
-    <p style="font-size:18px;color:#111827;margin:0 0 16px">Ciao Maria!</p>
-
     <!-- Body -->
     ${previewBody}
 

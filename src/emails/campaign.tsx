@@ -43,8 +43,6 @@ export default function CampaignEmail({
         <Container style={container}>
           <Header storeName={storeName} logoUrl={logoUrl} logoWidth={logoWidth} />
 
-          <Text style={greeting}>Ciao {firstName}!</Text>
-
           <div dangerouslySetInnerHTML={{ __html: bodyHtml }} />
 
           {ctaText && ctaUrl && (
@@ -78,12 +76,6 @@ const container: React.CSSProperties = {
   padding: "24px 32px",
   maxWidth: "600px",
   borderRadius: "8px",
-};
-
-const greeting: React.CSSProperties = {
-  fontSize: "18px",
-  color: "#111827",
-  margin: "0 0 16px",
 };
 
 const button: React.CSSProperties = {
