@@ -9,10 +9,11 @@ interface PreviewOptions {
   bgColor?: string;
   btnColor?: string;
   containerColor?: string;
+  textColor?: string;
 }
 
 export function buildPreviewHtml(opts: PreviewOptions): string {
-  const { subject, bodyHtml, ctaText, ctaUrl, storeName, logoUrl, logoWidth = 120, bgColor = "#f9fafb", btnColor = "#111827", containerColor = "#ffffff" } = opts;
+  const { subject, bodyHtml, ctaText, ctaUrl, storeName, logoUrl, logoWidth = 120, bgColor = "#f9fafb", btnColor = "#111827", containerColor = "#ffffff", textColor = "#374151" } = opts;
 
   const previewBody = bodyHtml.replace(/\{\{name\}\}/g, "Maria");
 
@@ -33,7 +34,7 @@ export function buildPreviewHtml(opts: PreviewOptions): string {
   <title>${escapeHtml(subject || "Anteprima")}</title>
 </head>
 <body style="background-color:${bgColor};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;margin:0;padding:20px 0">
-  <div style="background-color:${containerColor};margin:0 auto;padding:24px 32px;max-width:600px;border-radius:8px">
+  <div style="background-color:${containerColor};color:${textColor};margin:0 auto;padding:24px 32px;max-width:600px;border-radius:8px">
 
     <!-- Header -->
     <div style="text-align:center;padding:32px 0 24px;border-bottom:1px solid #e5e7eb;margin-bottom:24px">
@@ -48,7 +49,7 @@ export function buildPreviewHtml(opts: PreviewOptions): string {
     ${ctaBlock}
 
     <!-- Saluto -->
-    <p style="font-size:16px;line-height:26px;color:#374151;margin:24px 0 0">
+    <p style="font-size:16px;line-height:26px;color:${textColor};margin:24px 0 0">
       A presto,<br />Il team di ${escapeHtml(storeName)}
     </p>
 

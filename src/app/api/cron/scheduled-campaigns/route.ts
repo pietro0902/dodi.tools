@@ -90,6 +90,7 @@ export async function POST(request: Request) {
           bgColor: campaign.bgColor,
           btnColor: campaign.btnColor,
           containerColor: campaign.containerColor,
+          textColor: campaign.textColor,
         }),
       });
     });

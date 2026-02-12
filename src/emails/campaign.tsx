@@ -23,6 +23,7 @@ interface CampaignEmailProps {
   bgColor?: string;
   btnColor?: string;
   containerColor?: string;
+  textColor?: string;
 }
 
 export default function CampaignEmail({
@@ -38,10 +39,18 @@ export default function CampaignEmail({
   bgColor,
   btnColor,
   containerColor,
+  textColor,
 }: CampaignEmailProps) {
   const bodyStyle = bgColor ? { ...body, backgroundColor: bgColor } : body;
-  const containerStyle = containerColor ? { ...container, backgroundColor: containerColor } : container;
+  const containerStyle = containerColor
+    ? textColor
+      ? { ...container, backgroundColor: containerColor, color: textColor }
+      : { ...container, backgroundColor: containerColor }
+    : textColor
+      ? { ...container, color: textColor }
+      : container;
   const buttonStyle = btnColor ? { ...button, backgroundColor: btnColor } : button;
+  const salutoStyle = textColor ? { ...saluto, color: textColor } : saluto;
 
   return (
     <Html>
@@ -61,7 +70,7 @@ export default function CampaignEmail({
             </Link>
           )}
 
-          <Text style={saluto}>
+          <Text style={salutoStyle}>
             A presto,
             <br />
             Il team di {storeName}

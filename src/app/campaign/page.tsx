@@ -147,6 +147,7 @@ export default function CampaignEditor() {
   const [bgColor, setBgColor] = useState("#f9fafb");
   const [btnColor, setBtnColor] = useState("#111827");
   const [containerColor, setContainerColor] = useState("#ffffff");
+  const [textColor, setTextColor] = useState("#374151");
 
   // --- Preview ---
   const [previewHtml, setPreviewHtml] = useState("");
@@ -214,13 +215,14 @@ export default function CampaignEditor() {
           bgColor,
           btnColor,
           containerColor,
+          textColor,
         })
       );
     }, 300);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [form.subject, form.bodyHtml, form.ctaText, form.ctaUrl, logoWidth, bgColor, btnColor, containerColor]);
+  }, [form.subject, form.bodyHtml, form.ctaText, form.ctaUrl, logoWidth, bgColor, btnColor, containerColor, textColor]);
 
   // --- Template handlers ---
   const applyTemplate = useCallback((id: string) => {
@@ -374,6 +376,7 @@ export default function CampaignEditor() {
           bgColor,
           btnColor,
           containerColor,
+          textColor,
         };
 
         const res = await fetch("/api/campaigns/scheduled", {
@@ -423,6 +426,7 @@ export default function CampaignEditor() {
         bgColor,
         btnColor,
         containerColor,
+        textColor,
       };
 
       if (recipientMode === "manual" && selectedCustomerIds.size > 0) {
@@ -458,7 +462,7 @@ export default function CampaignEditor() {
     } finally {
       setSending(false);
     }
-  }, [form, app, applyTemplate, logoWidth, recipientMode, selectedCustomerIds, sendMode, scheduleDate, scheduleTime, recipientCount, bgColor, btnColor, containerColor]);
+  }, [form, app, applyTemplate, logoWidth, recipientMode, selectedCustomerIds, sendMode, scheduleDate, scheduleTime, recipientCount, bgColor, btnColor, containerColor, textColor]);
 
   // --- Product picker: fetch products ---
   const fetchProducts = useCallback(
@@ -1094,6 +1098,48 @@ export default function CampaignEditor() {
                         labelHidden
                         value={btnColor}
                         onChange={setBtnColor}
+                        autoComplete="off"
+                        monospaced
+                      />
+                    </InlineStack>
+                  </BlockStack>
+                </Box>
+                <Box minWidth="160px">
+                  <BlockStack gap="100">
+                    <Text as="span" variant="bodySm">Testo</Text>
+                    <InlineStack gap="200" blockAlign="center">
+                      <div
+                        style={{
+                          width: "28px",
+                          height: "28px",
+                          borderRadius: "4px",
+                          backgroundColor: textColor,
+                          border: "1px solid #d1d5db",
+                          cursor: "pointer",
+                          flexShrink: 0,
+                          position: "relative",
+                          overflow: "hidden",
+                        }}
+                      >
+                        <input
+                          type="color"
+                          value={textColor}
+                          onChange={(e) => setTextColor(e.target.value)}
+                          style={{
+                            position: "absolute",
+                            inset: 0,
+                            width: "100%",
+                            height: "100%",
+                            opacity: 0,
+                            cursor: "pointer",
+                          }}
+                        />
+                      </div>
+                      <TextField
+                        label=""
+                        labelHidden
+                        value={textColor}
+                        onChange={setTextColor}
                         autoComplete="off"
                         monospaced
                       />

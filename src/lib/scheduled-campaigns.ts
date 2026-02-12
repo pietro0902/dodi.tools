@@ -17,6 +17,7 @@ export interface ScheduledCampaign {
   bgColor?: string;
   btnColor?: string;
   containerColor?: string;
+  textColor?: string;
 }
 
 const NAMESPACE = "email_campaigns";

@@ -9,6 +9,7 @@ export interface CampaignTemplate {
   bgColor?: string;
   btnColor?: string;
   containerColor?: string;
+  textColor?: string;
 }
 
 export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [

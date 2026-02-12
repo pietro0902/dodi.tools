@@ -18,6 +18,7 @@ interface CampaignBody {
   bgColor?: string;
   btnColor?: string;
   containerColor?: string;
+  textColor?: string;
 }
 
 export async function POST(request: NextRequest) {
@@ -83,6 +84,7 @@ export async function POST(request: NextRequest) {
           bgColor: body.bgColor,
           btnColor: body.btnColor,
           containerColor: body.containerColor,
+          textColor: body.textColor,
         }),
       });
     });
