@@ -460,9 +460,7 @@ export interface ShopifyFile {
 }
 
 export async function getShopifyFiles(query?: string, limit = 24): Promise<ShopifyFile[]> {
-  const searchQuery = query
-    ? `filename:${query}* AND media_type:IMAGE`
-    : "media_type:IMAGE";
+  const searchQuery = query ? `${query}` : "";
 
   const data = await graphqlQuery<{
     files: {
@@ -471,22 +469,24 @@ export async function getShopifyFiles(query?: string, limit = 24): Promise<Shopi
           id: string;
           alt: string | null;
           createdAt: string;
-          image?: { url: string };
           fileStatus: string;
-          filename: string;
+          image?: { url: string; originalSrc?: string };
+          preview?: { image?: { url: string } };
         };
       }>;
     };
   }>(
-    `query Files($query: String!, $first: Int!) {
-      files(first: $first, query: $query, sortKey: CREATED_AT, reverse: true) {
+    `query Files($first: Int!${searchQuery ? ", $query: String" : ""}) {
+      files(first: $first, sortKey: CREATED_AT, reverse: true${searchQuery ? ", query: $query" : ""}) {
         edges {
           node {
             id
             alt
             createdAt
             fileStatus
-            filename
+            preview {
+              image { url }
+            }
             ... on MediaImage {
               image { url }
             }
@@ -494,16 +494,26 @@ export async function getShopifyFiles(query?: string, limit = 24): Promise<Shopi
         }
       }
     }`,
-    { query: searchQuery, first: limit }
+    searchQuery ? { first: limit, query: searchQuery } : { first: limit }
   );
 
   return data.files.edges
-    .filter(({ node }) => node.fileStatus === "READY" && node.image?.url)
-    .map(({ node }) => ({
-      id: node.id,
-      alt: node.alt || "",
-      url: node.image!.url,
-      filename: node.filename,
-      createdAt: node.createdAt,
-    }));
+    .filter(({ node }) => {
+      if (node.fileStatus !== "READY") return false;
+      const url = node.image?.url || node.preview?.image?.url;
+      return !!url;
+    })
+    .map(({ node }) => {
+      const url = node.image?.url || node.preview?.image?.url || "";
+      // Extract filename from URL
+      const urlPath = url.split("?")[0];
+      const filename = urlPath.split("/").pop() || "file";
+      return {
+        id: node.id,
+        alt: node.alt || "",
+        url,
+        filename,
+        createdAt: node.createdAt,
+      };
+    });
 }
