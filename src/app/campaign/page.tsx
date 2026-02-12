@@ -106,6 +106,7 @@ function hasBlockContent(blocks: EmailBlock[]): boolean {
       case "image": return b.src.trim().length > 0;
       case "button": return b.text.trim().length > 0 && b.url.trim().length > 0;
       case "products": return b.products.length > 0;
+      case "logo": return b.src.trim().length > 0;
       case "divider": return true;
     }
   });
@@ -136,6 +137,7 @@ export default function CampaignEditor() {
   // --- Template & form state ---
   const [selectedTemplateId, setSelectedTemplateId] = useState("blank");
   const [subject, setSubject] = useState("");
+  const [preheader, setPreheader] = useState("");
   const [blocks, setBlocks] = useState<EmailBlock[]>([]);
   const [blocksDirty, setBlocksDirty] = useState(false);
   const [sending, setSending] = useState(false);
@@ -268,6 +270,7 @@ export default function CampaignEditor() {
       setPreviewHtml(
         buildPreviewHtml({
           subject,
+          preheader,
           bodyHtml: assembledHtml,
           ctaText: "",
           ctaUrl: "",
@@ -282,7 +285,7 @@ export default function CampaignEditor() {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [subject, assembledHtml, bgColor, btnColor, containerColor, textColor]);
+  }, [subject, preheader, assembledHtml, bgColor, btnColor, containerColor, textColor]);
 
   // --- Template handlers ---
   const applyTemplate = useCallback((id: string) => {
@@ -290,6 +293,7 @@ export default function CampaignEditor() {
     if (!tpl) return;
     setSelectedTemplateId(id);
     setSubject(tpl.subject);
+    setPreheader("");
     if (tpl.blocks && tpl.blocks.length > 0) {
       setBlocks(tpl.blocks.map((b) => ({ ...b })));
     } else if (tpl.bodyHtml !== undefined) {
@@ -438,6 +442,7 @@ export default function CampaignEditor() {
 
         const payload = {
           subject,
+          previewText: preheader || undefined,
           bodyHtml: finalHtml,
           ctaText: "",
           ctaUrl: "",
@@ -491,6 +496,7 @@ export default function CampaignEditor() {
 
       const payload: Record<string, unknown> = {
         subject,
+        previewText: preheader || undefined,
         html: finalHtml,
         ctaText: "",
         ctaUrl: "",
@@ -533,7 +539,7 @@ export default function CampaignEditor() {
     } finally {
       setSending(false);
     }
-  }, [blocks, subject, app, applyTemplate, recipientMode, selectedCustomerIds, sendMode, scheduleDate, scheduleTime, recipientCount, bgColor, btnColor, containerColor, textColor]);
+  }, [blocks, subject, preheader, app, applyTemplate, recipientMode, selectedCustomerIds, sendMode, scheduleDate, scheduleTime, recipientCount, bgColor, btnColor, containerColor, textColor]);
 
   // --- Product picker: fetch products ---
   const fetchProducts = useCallback(
@@ -983,6 +989,14 @@ export default function CampaignEditor() {
                 onChange={(v) => { setSubject(v); setBlocksDirty(true); }}
                 placeholder="Es: Nuova collezione primavera"
                 autoComplete="off"
+              />
+              <TextField
+                label="Preheader"
+                value={preheader}
+                onChange={(v) => { setPreheader(v); setBlocksDirty(true); }}
+                placeholder="Testo di anteprima visibile nell'inbox"
+                autoComplete="off"
+                helpText="Appare dopo l'oggetto nella lista email del destinatario."
               />
 
               <BlockEditor

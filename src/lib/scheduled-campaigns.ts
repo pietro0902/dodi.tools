@@ -3,6 +3,7 @@ import { graphqlQuery } from "@/lib/shopify";
 export interface ScheduledCampaign {
   id: string;
   subject: string;
+  previewText?: string;
   bodyHtml: string;
   ctaText: string;
   ctaUrl: string;

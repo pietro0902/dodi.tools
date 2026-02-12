@@ -1,5 +1,6 @@
 interface PreviewOptions {
   subject: string;
+  preheader?: string;
   bodyHtml: string;
   ctaText: string;
   ctaUrl: string;
@@ -11,7 +12,7 @@ interface PreviewOptions {
 }
 
 export function buildPreviewHtml(opts: PreviewOptions): string {
-  const { subject, bodyHtml, ctaText, ctaUrl, storeName, bgColor = "#f9fafb", btnColor = "#111827", containerColor = "#ffffff", textColor = "#374151" } = opts;
+  const { subject, preheader, bodyHtml, ctaText, ctaUrl, storeName, bgColor = "#f9fafb", btnColor = "#111827", containerColor = "#ffffff", textColor = "#374151" } = opts;
 
   const previewBody = bodyHtml.replace(/\{\{name\}\}/g, "Maria");
 
@@ -28,6 +29,7 @@ export function buildPreviewHtml(opts: PreviewOptions): string {
   <title>${escapeHtml(subject || "Anteprima")}</title>
 </head>
 <body style="background-color:${bgColor};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;margin:0;padding:20px 0">
+  ${preheader ? `<div style="display:none;font-size:1px;color:${bgColor};line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden">${escapeHtml(preheader)}</div>` : ""}
   <div style="background-color:${containerColor};color:${textColor};margin:0 auto;padding:24px 32px;max-width:600px;border-radius:8px">
 
     <!-- Body -->

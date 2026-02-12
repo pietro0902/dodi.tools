@@ -79,7 +79,7 @@ export async function POST(request: Request) {
         react: CampaignEmail({
           firstName,
           subject: campaign.subject,
-          previewText: campaign.subject,
+          previewText: campaign.previewText || campaign.subject,
           bodyHtml: personalizedHtml,
           ctaText: campaign.ctaText || undefined,
           ctaUrl: campaign.ctaUrl || undefined,

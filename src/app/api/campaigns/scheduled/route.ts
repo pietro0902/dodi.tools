@@ -30,6 +30,7 @@ export async function GET(request: NextRequest) {
 
 interface ScheduleBody {
   subject: string;
+  previewText?: string;
   bodyHtml: string;
   ctaText: string;
   ctaUrl: string;
@@ -88,6 +89,7 @@ export async function POST(request: NextRequest) {
     const campaign: ScheduledCampaign = {
       id: campaignId,
       subject: body.subject,
+      previewText: body.previewText,
       bodyHtml: body.bodyHtml,
       ctaText: body.ctaText || "",
       ctaUrl: body.ctaUrl || "",
