@@ -74,5 +74,5 @@ ${buildProductCard(p, btnColor)}
 </div>`;
   });
 
-  return `\n<!-- Prodotti (scorrimento) -->\n<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;white-space:nowrap;margin:16px 0;padding:4px 0;font-size:0">\n${cards.join("\n")}\n</div>\n`;
+  return `\n<!-- Prodotti (scorrimento) -->\n<style>.ps::-webkit-scrollbar{display:none}</style>\n<div class="ps" style="overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;-ms-overflow-style:none;white-space:nowrap;margin:16px 0;padding:4px 0;font-size:0;cursor:grab">\n${cards.join("\n")}\n</div>\n`;
 }

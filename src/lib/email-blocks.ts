@@ -22,6 +22,8 @@ export interface ButtonBlock {
   type: "button";
   text: string;
   url: string;
+  bgColor: string;
+  textColor: string;
 }
 
 export interface ProductsBlock {
@@ -59,7 +61,7 @@ export function createDefaultBlock(type: EmailBlockType): EmailBlock {
     case "image":
       return { id, type: "image", src: "", alt: "", width: "100%" };
     case "button":
-      return { id, type: "button", text: "", url: "" };
+      return { id, type: "button", text: "", url: "", bgColor: "#111827", textColor: "#ffffff" };
     case "products":
       return { id, type: "products", products: [], layout: "grid" };
     case "divider":
@@ -84,7 +86,9 @@ export function blocksToHtml(blocks: EmailBlock[], btnColor: string): string {
 
         case "button": {
           if (!block.text || !block.url) return "";
-          return `<div style="text-align:center;margin:16px 0"><a href="${block.url}" style="display:inline-block;background-color:${btnColor};color:#ffffff;font-size:16px;font-weight:600;text-decoration:none;padding:12px 32px;border-radius:6px">${block.text}</a></div>`;
+          const bg = block.bgColor || btnColor;
+          const tc = block.textColor || "#ffffff";
+          return `<div style="text-align:center;margin:16px 0"><a href="${block.url}" style="display:inline-block;background-color:${bg};color:${tc};font-size:16px;font-weight:600;text-decoration:none;padding:12px 32px;border-radius:6px">${block.text}</a></div>`;
         }
 
         case "products":
@@ -122,6 +126,8 @@ export function templateToBlocks(template: {
       type: "button",
       text: template.ctaText,
       url: template.ctaUrl,
+      bgColor: "#111827",
+      textColor: "#ffffff",
     });
   }
 

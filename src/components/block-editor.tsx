@@ -197,6 +197,96 @@ export function BlockEditor({
                   placeholder="https://www.dodishop.it/..."
                   autoComplete="off"
                 />
+                <InlineStack gap="300" wrap>
+                  <Box minWidth="140px">
+                    <BlockStack gap="100">
+                      <Text as="span" variant="bodySm">Sfondo bottone</Text>
+                      <InlineStack gap="200" blockAlign="center">
+                        <div
+                          style={{
+                            width: "28px",
+                            height: "28px",
+                            borderRadius: "4px",
+                            backgroundColor: block.bgColor,
+                            border: "1px solid #d1d5db",
+                            cursor: "pointer",
+                            flexShrink: 0,
+                            position: "relative",
+                            overflow: "hidden",
+                          }}
+                        >
+                          <input
+                            type="color"
+                            value={block.bgColor}
+                            onChange={(e) =>
+                              updateBlock(block.id, { bgColor: e.target.value })
+                            }
+                            style={{
+                              position: "absolute",
+                              inset: 0,
+                              width: "100%",
+                              height: "100%",
+                              opacity: 0,
+                              cursor: "pointer",
+                            }}
+                          />
+                        </div>
+                        <TextField
+                          label=""
+                          labelHidden
+                          value={block.bgColor}
+                          onChange={(v) => updateBlock(block.id, { bgColor: v })}
+                          autoComplete="off"
+                          monospaced
+                        />
+                      </InlineStack>
+                    </BlockStack>
+                  </Box>
+                  <Box minWidth="140px">
+                    <BlockStack gap="100">
+                      <Text as="span" variant="bodySm">Colore testo</Text>
+                      <InlineStack gap="200" blockAlign="center">
+                        <div
+                          style={{
+                            width: "28px",
+                            height: "28px",
+                            borderRadius: "4px",
+                            backgroundColor: block.textColor,
+                            border: "1px solid #d1d5db",
+                            cursor: "pointer",
+                            flexShrink: 0,
+                            position: "relative",
+                            overflow: "hidden",
+                          }}
+                        >
+                          <input
+                            type="color"
+                            value={block.textColor}
+                            onChange={(e) =>
+                              updateBlock(block.id, { textColor: e.target.value })
+                            }
+                            style={{
+                              position: "absolute",
+                              inset: 0,
+                              width: "100%",
+                              height: "100%",
+                              opacity: 0,
+                              cursor: "pointer",
+                            }}
+                          />
+                        </div>
+                        <TextField
+                          label=""
+                          labelHidden
+                          value={block.textColor}
+                          onChange={(v) => updateBlock(block.id, { textColor: v })}
+                          autoComplete="off"
+                          monospaced
+                        />
+                      </InlineStack>
+                    </BlockStack>
+                  </Box>
+                </InlineStack>
               </BlockStack>
             )}
 
