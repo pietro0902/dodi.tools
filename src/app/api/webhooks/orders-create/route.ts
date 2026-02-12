@@ -30,7 +30,6 @@ export async function POST(request: NextRequest) {
 
     const resend = getResendClient();
     const storeName = process.env.STORE_NAME || "Store";
-    const logoUrl = process.env.STORE_LOGO_URL;
 
     await resend.emails.send({
       from: process.env.EMAIL_FROM!,
@@ -47,7 +46,6 @@ export async function POST(request: NextRequest) {
           price: item.price,
         })),
         storeName,
-        logoUrl,
       }),
     });
 

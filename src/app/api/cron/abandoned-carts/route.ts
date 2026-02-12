@@ -53,7 +53,6 @@ export async function POST(request: Request) {
 
     const resend = getResendClient();
     const storeName = process.env.STORE_NAME || "Store";
-    const logoUrl = process.env.STORE_LOGO_URL;
 
     const result = await sendInBatches(eligible, 100, 1000, async (checkout) => {
       const firstName = checkout.customer?.first_name || "Cliente";
@@ -91,7 +90,6 @@ export async function POST(request: Request) {
           previewText: personalizedSubject,
           bodyHtml: fullBodyHtml,
           storeName,
-          logoUrl,
         }),
       });
     });

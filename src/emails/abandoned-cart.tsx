@@ -27,7 +27,6 @@ interface AbandonedCartEmailProps {
   currency: string;
   lineItems: CartItem[];
   storeName: string;
-  logoUrl?: string;
 }
 
 export default function AbandonedCartEmail({
@@ -37,7 +36,6 @@ export default function AbandonedCartEmail({
   currency = "EUR",
   lineItems = [{ title: "Prodotto esempio", quantity: 1, price: "59.00" }],
   storeName = "Il Tuo Store",
-  logoUrl,
 }: AbandonedCartEmailProps) {
   const currencySymbol = currency === "EUR" ? "€" : currency;
 
@@ -49,7 +47,7 @@ export default function AbandonedCartEmail({
       </Preview>
       <Body style={body}>
         <Container style={container}>
-          <Header storeName={storeName} logoUrl={logoUrl} />
+          <Header />
 
           <Text style={heading}>Hai dimenticato qualcosa!</Text>
 

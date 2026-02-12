@@ -13,7 +13,6 @@ interface CampaignBody {
   html?: string;
   ctaText?: string;
   ctaUrl?: string;
-  logoWidth?: number;
   customerIds?: number[];
   bgColor?: string;
   btnColor?: string;
@@ -61,7 +60,6 @@ export async function POST(request: NextRequest) {
 
     const resend = getResendClient();
     const storeName = process.env.STORE_NAME || "Store";
-    const logoUrl = process.env.STORE_LOGO_URL;
 
     const result = await sendInBatches(customers, 100, 1000, async (customer) => {
       const firstName = customer.first_name || "Cliente";
@@ -79,8 +77,6 @@ export async function POST(request: NextRequest) {
           ctaText: body.ctaText,
           ctaUrl: body.ctaUrl,
           storeName,
-          logoUrl,
-          logoWidth: body.logoWidth,
           bgColor: body.bgColor,
           btnColor: body.btnColor,
           containerColor: body.containerColor,

@@ -14,14 +14,12 @@ interface WelcomeEmailProps {
   firstName: string;
   storeName: string;
   storeUrl: string;
-  logoUrl?: string;
 }
 
 export default function WelcomeEmail({
   firstName = "Cliente",
   storeName = "Il Tuo Store",
   storeUrl = "https://example.com",
-  logoUrl,
 }: WelcomeEmailProps) {
   return (
     <Html>
@@ -31,7 +29,7 @@ export default function WelcomeEmail({
       </Preview>
       <Body style={body}>
         <Container style={container}>
-          <Header storeName={storeName} logoUrl={logoUrl} />
+          <Header />
 
           <Text style={heading}>Ciao {firstName}!</Text>
 

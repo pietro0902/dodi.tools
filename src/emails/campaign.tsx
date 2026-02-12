@@ -18,8 +18,6 @@ interface CampaignEmailProps {
   ctaText?: string;
   ctaUrl?: string;
   storeName: string;
-  logoUrl?: string;
-  logoWidth?: number;
   bgColor?: string;
   btnColor?: string;
   containerColor?: string;
@@ -34,8 +32,6 @@ export default function CampaignEmail({
   ctaText,
   ctaUrl,
   storeName = "Il Tuo Store",
-  logoUrl,
-  logoWidth,
   bgColor,
   btnColor,
   containerColor,
@@ -60,7 +56,7 @@ export default function CampaignEmail({
       <Preview>{previewText}</Preview>
       <Body style={bodyStyle}>
         <Container style={containerStyle}>
-          <Header storeName={storeName} logoUrl={logoUrl} logoWidth={logoWidth} accentColor={btnColor} />
+          <Header />
 
           <div dangerouslySetInnerHTML={{ __html: bodyHtml }} />
 

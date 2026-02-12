@@ -29,6 +29,7 @@ const BLOCK_LABELS: Record<EmailBlockType, string> = {
   image: "Immagine",
   button: "Bottone",
   products: "Prodotti",
+  logo: "Logo",
   divider: "Separatore",
 };
 
@@ -320,6 +321,71 @@ export function BlockEditor({
               </BlockStack>
             )}
 
+            {block.type === "logo" && (
+              <BlockStack gap="200">
+                <InlineStack gap="200" blockAlign="end">
+                  <Box minWidth="0" width="100%">
+                    <TextField
+                      label="URL logo"
+                      value={block.src}
+                      onChange={(v) => updateBlock(block.id, { src: v })}
+                      placeholder="https://cdn.shopify.com/..."
+                      autoComplete="off"
+                    />
+                  </Box>
+                  <Button
+                    onClick={() => onOpenImageUploader(block.id)}
+                    variant="secondary"
+                    size="slim"
+                  >
+                    Carica
+                  </Button>
+                </InlineStack>
+                <TextField
+                  label="Testo alternativo"
+                  value={block.alt}
+                  onChange={(v) => updateBlock(block.id, { alt: v })}
+                  placeholder="Nome del negozio"
+                  autoComplete="off"
+                />
+                <TextField
+                  label="Larghezza (px)"
+                  type="number"
+                  value={String(block.width)}
+                  onChange={(v) => {
+                    const n = parseInt(v, 10);
+                    if (!isNaN(n) && n > 0) updateBlock(block.id, { width: n });
+                  }}
+                  min={40}
+                  max={400}
+                  suffix="px"
+                  autoComplete="off"
+                  helpText="Min 40px, max 400px"
+                />
+                {block.src && (
+                  <div
+                    style={{
+                      border: "1px solid #e5e7eb",
+                      borderRadius: "6px",
+                      padding: "8px",
+                      textAlign: "center",
+                    }}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={block.src}
+                      alt={block.alt || "Logo"}
+                      style={{
+                        maxWidth: "100%",
+                        maxHeight: "80px",
+                        borderRadius: "4px",
+                      }}
+                    />
+                  </div>
+                )}
+              </BlockStack>
+            )}
+
             {block.type === "divider" && (
               <hr
                 style={{
@@ -349,6 +415,9 @@ export function BlockEditor({
         </Button>
         <Button size="slim" onClick={() => addBlock("products")}>
           + Prodotti
+        </Button>
+        <Button size="slim" onClick={() => addBlock("logo")}>
+          + Logo
         </Button>
         <Button size="slim" onClick={() => addBlock("divider")}>
           + Separatore

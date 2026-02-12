@@ -40,7 +40,6 @@ export async function POST(request: NextRequest) {
 
     const resend = getResendClient();
     const storeName = process.env.STORE_NAME || "Store";
-    const logoUrl = process.env.STORE_LOGO_URL;
     const firstName = customer.first_name || "Cliente";
 
     const personalizedSubject = settings.welcome.subject.replace(/\{\{name\}\}/g, firstName);
@@ -56,7 +55,6 @@ export async function POST(request: NextRequest) {
         previewText: personalizedSubject,
         bodyHtml: personalizedBody,
         storeName,
-        logoUrl,
       }),
     });
 

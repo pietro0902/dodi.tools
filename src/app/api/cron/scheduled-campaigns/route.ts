@@ -49,7 +49,6 @@ export async function POST(request: Request) {
 
     const resend = getResendClient();
     const storeName = process.env.STORE_NAME || "Store";
-    const logoUrl = process.env.STORE_LOGO_URL;
 
     let customers = await getOptInCustomers();
 
@@ -85,8 +84,6 @@ export async function POST(request: Request) {
           ctaText: campaign.ctaText || undefined,
           ctaUrl: campaign.ctaUrl || undefined,
           storeName,
-          logoUrl,
-          logoWidth: campaign.logoWidth,
           bgColor: campaign.bgColor,
           btnColor: campaign.btnColor,
           containerColor: campaign.containerColor,

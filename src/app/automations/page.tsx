@@ -43,7 +43,6 @@ function useShopifyGlobal() {
 }
 
 const STORE_NAME = process.env.NEXT_PUBLIC_STORE_NAME || "Dodi's";
-const STORE_LOGO_URL = process.env.NEXT_PUBLIC_STORE_LOGO_URL || "";
 
 export default function AutomationsPage() {
   const app = useShopifyGlobal();
@@ -95,7 +94,6 @@ export default function AutomationsPage() {
         ctaText: "",
         ctaUrl: "",
         storeName: STORE_NAME,
-        logoUrl: STORE_LOGO_URL,
       })
     );
     setCartPreview(
@@ -105,7 +103,6 @@ export default function AutomationsPage() {
         ctaText: "Completa l'acquisto",
         ctaUrl: "#",
         storeName: STORE_NAME,
-        logoUrl: STORE_LOGO_URL,
       })
     );
   }, [settings]);

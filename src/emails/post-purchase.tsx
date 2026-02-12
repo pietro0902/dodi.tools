@@ -25,7 +25,6 @@ interface PostPurchaseEmailProps {
   currency: string;
   lineItems: LineItem[];
   storeName: string;
-  logoUrl?: string;
 }
 
 export default function PostPurchaseEmail({
@@ -35,7 +34,6 @@ export default function PostPurchaseEmail({
   currency = "EUR",
   lineItems = [{ title: "Prodotto esempio", quantity: 1, price: "99.00" }],
   storeName = "Il Tuo Store",
-  logoUrl,
 }: PostPurchaseEmailProps) {
   const currencySymbol = currency === "EUR" ? "€" : currency;
 
@@ -47,7 +45,7 @@ export default function PostPurchaseEmail({
       </Preview>
       <Body style={body}>
         <Container style={container}>
-          <Header storeName={storeName} logoUrl={logoUrl} />
+          <Header />
 
           <Text style={heading}>Grazie per il tuo acquisto!</Text>
 

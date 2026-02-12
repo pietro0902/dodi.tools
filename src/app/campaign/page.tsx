@@ -66,7 +66,6 @@ function useShopifyGlobal() {
 }
 
 const STORE_NAME = process.env.NEXT_PUBLIC_STORE_NAME || "Dodi's";
-const STORE_LOGO_URL = process.env.NEXT_PUBLIC_STORE_LOGO_URL || "";
 
 const sortOptions = [
   { label: "Best seller", value: "BEST_SELLING" },
@@ -161,10 +160,6 @@ export default function CampaignEditor() {
   const [scheduleDate, setScheduleDate] = useState("");
   const [scheduleTime, setScheduleTime] = useState("");
   const [scheduling, setScheduling] = useState(false);
-
-  // --- Logo size ---
-  const [logoWidth, setLogoWidth] = useState(120);
-  const [logoWidthInput, setLogoWidthInput] = useState("120");
 
   // --- Email colors ---
   const [bgColor, setBgColor] = useState("#f9fafb");
@@ -280,8 +275,6 @@ export default function CampaignEditor() {
           ctaText: "",
           ctaUrl: "",
           storeName: STORE_NAME,
-          logoUrl: STORE_LOGO_URL,
-          logoWidth,
           bgColor,
           btnColor,
           containerColor,
@@ -292,7 +285,7 @@ export default function CampaignEditor() {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [subject, assembledHtml, logoWidth, bgColor, btnColor, containerColor, textColor]);
+  }, [subject, assembledHtml, bgColor, btnColor, containerColor, textColor]);
 
   // --- Template handlers ---
   const applyTemplate = useCallback((id: string) => {
@@ -451,7 +444,6 @@ export default function CampaignEditor() {
           bodyHtml: finalHtml,
           ctaText: "",
           ctaUrl: "",
-          logoWidth,
           recipientMode,
           customerIds: recipientMode === "manual" ? Array.from(selectedCustomerIds) : undefined,
           scheduledAt,
@@ -505,7 +497,6 @@ export default function CampaignEditor() {
         html: finalHtml,
         ctaText: "",
         ctaUrl: "",
-        logoWidth,
         bgColor,
         btnColor,
         containerColor,
@@ -545,7 +536,7 @@ export default function CampaignEditor() {
     } finally {
       setSending(false);
     }
-  }, [blocks, subject, app, applyTemplate, logoWidth, recipientMode, selectedCustomerIds, sendMode, scheduleDate, scheduleTime, recipientCount, bgColor, btnColor, containerColor, textColor]);
+  }, [blocks, subject, app, applyTemplate, recipientMode, selectedCustomerIds, sendMode, scheduleDate, scheduleTime, recipientCount, bgColor, btnColor, containerColor, textColor]);
 
   // --- Product picker: fetch products ---
   const fetchProducts = useCallback(
@@ -1003,26 +994,6 @@ export default function CampaignEditor() {
               <Text as="p" variant="bodySm" tone="subdued">
                 {selectedDescription}
               </Text>
-              <TextField
-                label="Larghezza logo (px)"
-                type="number"
-                value={logoWidthInput}
-                onChange={(v) => {
-                  setLogoWidthInput(v);
-                  const n = parseInt(v, 10);
-                  if (!isNaN(n) && n > 0) setLogoWidth(n);
-                }}
-                onBlur={() => {
-                  const clamped = Math.max(40, Math.min(400, logoWidth));
-                  setLogoWidth(clamped);
-                  setLogoWidthInput(String(clamped));
-                }}
-                min={40}
-                max={400}
-                suffix="px"
-                autoComplete="off"
-                helpText="Min 40px, max 400px"
-              />
             </BlockStack>
           </Card>
         </Layout.Section>

@@ -33,6 +33,14 @@ export interface ProductsBlock {
   layout: ProductLayout;
 }
 
+export interface LogoBlock {
+  id: string;
+  type: "logo";
+  src: string;
+  alt: string;
+  width: number;
+}
+
 export interface DividerBlock {
   id: string;
   type: "divider";
@@ -43,6 +51,7 @@ export type EmailBlock =
   | ImageBlock
   | ButtonBlock
   | ProductsBlock
+  | LogoBlock
   | DividerBlock;
 
 export type EmailBlockType = EmailBlock["type"];
@@ -64,6 +73,8 @@ export function createDefaultBlock(type: EmailBlockType): EmailBlock {
       return { id, type: "button", text: "", url: "", bgColor: "#111827", textColor: "#ffffff" };
     case "products":
       return { id, type: "products", products: [], layout: "grid" };
+    case "logo":
+      return { id, type: "logo", src: "", alt: "", width: 120 };
     case "divider":
       return { id, type: "divider" };
   }
@@ -94,6 +105,11 @@ export function blocksToHtml(blocks: EmailBlock[], btnColor: string): string {
         case "products":
           if (block.products.length === 0) return "";
           return buildProductGridHtml(block.products, block.layout, btnColor);
+
+        case "logo": {
+          if (!block.src) return "";
+          return `<div style="text-align:center;padding:24px 0"><img src="${block.src}" alt="${block.alt || ""}" width="${block.width}" style="display:block;margin:0 auto;height:auto" /></div>`;
+        }
 
         case "divider":
           return `<hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0" />`;
