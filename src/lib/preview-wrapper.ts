@@ -6,16 +6,19 @@ interface PreviewOptions {
   storeName: string;
   logoUrl: string;
   logoWidth?: number;
+  bgColor?: string;
+  btnColor?: string;
+  containerColor?: string;
 }
 
 export function buildPreviewHtml(opts: PreviewOptions): string {
-  const { subject, bodyHtml, ctaText, ctaUrl, storeName, logoUrl, logoWidth = 120 } = opts;
+  const { subject, bodyHtml, ctaText, ctaUrl, storeName, logoUrl, logoWidth = 120, bgColor = "#f9fafb", btnColor = "#111827", containerColor = "#ffffff" } = opts;
 
   const previewBody = bodyHtml.replace(/\{\{name\}\}/g, "Maria");
 
   const ctaBlock =
     ctaText && ctaUrl
-      ? `<a href="${escapeHtml(ctaUrl)}" style="display:inline-block;background-color:#111827;color:#ffffff;font-size:16px;font-weight:600;text-decoration:none;padding:12px 32px;border-radius:6px;margin:16px 0 24px">${escapeHtml(ctaText)}</a>`
+      ? `<a href="${escapeHtml(ctaUrl)}" style="display:inline-block;background-color:${btnColor};color:#ffffff;font-size:16px;font-weight:600;text-decoration:none;padding:12px 32px;border-radius:6px;margin:16px 0 24px">${escapeHtml(ctaText)}</a>`
       : "";
 
   const logoBlock = logoUrl
@@ -29,13 +32,13 @@ export function buildPreviewHtml(opts: PreviewOptions): string {
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>${escapeHtml(subject || "Anteprima")}</title>
 </head>
-<body style="background-color:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;margin:0;padding:20px 0">
-  <div style="background-color:#ffffff;margin:0 auto;padding:24px 32px;max-width:600px;border-radius:8px">
+<body style="background-color:${bgColor};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;margin:0;padding:20px 0">
+  <div style="background-color:${containerColor};margin:0 auto;padding:24px 32px;max-width:600px;border-radius:8px">
 
     <!-- Header -->
     <div style="text-align:center;padding:32px 0 24px;border-bottom:1px solid #e5e7eb;margin-bottom:24px">
       ${logoBlock}
-      ${!logoUrl ? `<p style="font-size:20px;font-weight:bold;color:#111827;margin:0">${escapeHtml(storeName)}</p>` : ""}
+      ${!logoUrl ? `<p style="font-size:20px;font-weight:bold;color:${btnColor};margin:0">${escapeHtml(storeName)}</p>` : ""}
     </div>
 
     <!-- Body -->

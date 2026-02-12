@@ -20,6 +20,9 @@ interface CampaignEmailProps {
   storeName: string;
   logoUrl?: string;
   logoWidth?: number;
+  bgColor?: string;
+  btnColor?: string;
+  containerColor?: string;
 }
 
 export default function CampaignEmail({
@@ -32,21 +35,28 @@ export default function CampaignEmail({
   storeName = "Il Tuo Store",
   logoUrl,
   logoWidth,
+  bgColor,
+  btnColor,
+  containerColor,
 }: CampaignEmailProps) {
+  const bodyStyle = bgColor ? { ...body, backgroundColor: bgColor } : body;
+  const containerStyle = containerColor ? { ...container, backgroundColor: containerColor } : container;
+  const buttonStyle = btnColor ? { ...button, backgroundColor: btnColor } : button;
+
   return (
     <Html>
       <Head>
         <title>{subject}</title>
       </Head>
       <Preview>{previewText}</Preview>
-      <Body style={body}>
-        <Container style={container}>
-          <Header storeName={storeName} logoUrl={logoUrl} logoWidth={logoWidth} />
+      <Body style={bodyStyle}>
+        <Container style={containerStyle}>
+          <Header storeName={storeName} logoUrl={logoUrl} logoWidth={logoWidth} accentColor={btnColor} />
 
           <div dangerouslySetInnerHTML={{ __html: bodyHtml }} />
 
           {ctaText && ctaUrl && (
-            <Link href={ctaUrl} style={button}>
+            <Link href={ctaUrl} style={buttonStyle}>
               {ctaText}
             </Link>
           )}

@@ -4,9 +4,10 @@ interface HeaderProps {
   storeName: string;
   logoUrl?: string;
   logoWidth?: number;
+  accentColor?: string;
 }
 
-export function Header({ storeName, logoUrl, logoWidth = 120 }: HeaderProps) {
+export function Header({ storeName, logoUrl, logoWidth = 120, accentColor }: HeaderProps) {
   return (
     <Section style={container}>
       {logoUrl ? (
@@ -17,7 +18,7 @@ export function Header({ storeName, logoUrl, logoWidth = 120 }: HeaderProps) {
           style={logo}
         />
       ) : (
-        <Text style={title}>{storeName}</Text>
+        <Text style={accentColor ? { ...title, color: accentColor } : title}>{storeName}</Text>
       )}
     </Section>
   );

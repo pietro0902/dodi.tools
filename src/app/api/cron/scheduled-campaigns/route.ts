@@ -87,6 +87,9 @@ export async function POST(request: Request) {
           storeName,
           logoUrl,
           logoWidth: campaign.logoWidth,
+          bgColor: campaign.bgColor,
+          btnColor: campaign.btnColor,
+          containerColor: campaign.containerColor,
         }),
       });
     });

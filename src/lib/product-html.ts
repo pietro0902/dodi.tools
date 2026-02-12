@@ -16,10 +16,10 @@ function formatPrice(amount: string, currency: string): string {
   return `${num.toFixed(2)} ${currency}`;
 }
 
-function buildProductCard(product: ShopifyProduct): string {
+function buildProductCard(product: ShopifyProduct, btnColor?: string): string {
   const imgBlock = product.imageUrl
-    ? `<img src="${esc(product.imageUrl)}" alt="${esc(product.title)}" style="width:100%;max-width:180px;height:auto;border-radius:6px;display:block;margin:0 auto" />`
-    : "";
+    ? `<div style="height:160px;text-align:center;line-height:160px;overflow:hidden"><img src="${esc(product.imageUrl)}" alt="${esc(product.title)}" style="max-width:100%;max-height:160px;width:auto;height:auto;border-radius:6px;vertical-align:middle" /></div>`
+    : `<div style="height:160px"></div>`;
 
   const priceDisplay = formatPrice(product.price, product.currency);
   const compareBlock =
@@ -31,21 +31,21 @@ function buildProductCard(product: ShopifyProduct): string {
   ${imgBlock}
   <p style="font-size:14px;font-weight:600;color:#111827;margin:8px 0 4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(product.title)}</p>
   <p style="font-size:15px;color:#111827;font-weight:700;margin:0 0 12px">${priceDisplay}${compareBlock}</p>
-  <a href="${esc(product.url)}" style="display:inline-block;background-color:#111827;color:#ffffff;font-size:13px;font-weight:600;text-decoration:none;padding:8px 20px;border-radius:6px">Acquista</a>
+  <a href="${esc(product.url)}" style="display:inline-block;background-color:${btnColor || "#111827"};color:#ffffff;font-size:13px;font-weight:600;text-decoration:none;padding:8px 20px;border-radius:6px">Acquista</a>
 </div>`;
 }
 
-export function buildProductBlockHtml(product: ShopifyProduct): string {
-  return buildProductGridHtml([product], "grid");
+export function buildProductBlockHtml(product: ShopifyProduct, btnColor?: string): string {
+  return buildProductGridHtml([product], "grid", btnColor);
 }
 
-export function buildProductGridHtml(products: ShopifyProduct[], layout: ProductLayout = "grid"): string {
+export function buildProductGridHtml(products: ShopifyProduct[], layout: ProductLayout = "grid", btnColor?: string): string {
   if (products.length === 0) return "";
 
   if (layout === "scroll") {
-    return buildScrollLayout(products);
+    return buildScrollLayout(products, btnColor);
   }
-  return buildGridLayout(products);
+  return buildGridLayout(products, btnColor);
 }
 
 /**
@@ -53,10 +53,10 @@ export function buildProductGridHtml(products: ShopifyProduct[], layout: Product
  * On desktop (600px email) they fit 2 per row.
  * On mobile (<400px) they stack vertically.
  */
-function buildGridLayout(products: ShopifyProduct[]): string {
+function buildGridLayout(products: ShopifyProduct[], btnColor?: string): string {
   const cards = products.map((p) => {
     return `<div style="display:inline-block;vertical-align:top;width:260px;max-width:100%;margin:8px;box-sizing:border-box">
-${buildProductCard(p)}
+${buildProductCard(p, btnColor)}
 </div>`;
   });
 
@@ -67,10 +67,10 @@ ${buildProductCard(p)}
  * Scroll layout: horizontal scrollable row.
  * Works in Gmail web, Apple Mail, iOS Mail. Degrades to wrapped layout in others.
  */
-function buildScrollLayout(products: ShopifyProduct[]): string {
+function buildScrollLayout(products: ShopifyProduct[], btnColor?: string): string {
   const cards = products.map((p) => {
     return `<div style="display:inline-block;vertical-align:top;width:200px;min-width:200px;margin:0 8px;box-sizing:border-box">
-${buildProductCard(p)}
+${buildProductCard(p, btnColor)}
 </div>`;
   });
 

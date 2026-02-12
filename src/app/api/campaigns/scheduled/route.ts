@@ -38,6 +38,9 @@ interface ScheduleBody {
   customerIds?: number[];
   scheduledAt: string;
   recipientCount: number;
+  bgColor?: string;
+  btnColor?: string;
+  containerColor?: string;
 }
 
 export async function POST(request: NextRequest) {
@@ -95,6 +98,9 @@ export async function POST(request: NextRequest) {
       createdAt: new Date().toISOString(),
       recipientCount: body.recipientCount || 0,
       qstashMessageId: messageId,
+      bgColor: body.bgColor,
+      btnColor: body.btnColor,
+      containerColor: body.containerColor,
     };
 
     await addScheduledCampaign(campaign);

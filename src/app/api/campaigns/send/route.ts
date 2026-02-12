@@ -15,6 +15,9 @@ interface CampaignBody {
   ctaUrl?: string;
   logoWidth?: number;
   customerIds?: number[];
+  bgColor?: string;
+  btnColor?: string;
+  containerColor?: string;
 }
 
 export async function POST(request: NextRequest) {
@@ -77,6 +80,9 @@ export async function POST(request: NextRequest) {
           storeName,
           logoUrl,
           logoWidth: body.logoWidth,
+          bgColor: body.bgColor,
+          btnColor: body.btnColor,
+          containerColor: body.containerColor,
         }),
       });
     });

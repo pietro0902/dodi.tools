@@ -14,6 +14,9 @@ export interface ScheduledCampaign {
   createdAt: string;
   recipientCount: number;
   qstashMessageId?: string;
+  bgColor?: string;
+  btnColor?: string;
+  containerColor?: string;
 }
 
 const NAMESPACE = "email_campaigns";

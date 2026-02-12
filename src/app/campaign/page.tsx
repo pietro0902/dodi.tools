@@ -143,6 +143,11 @@ export default function CampaignEditor() {
   const [logoWidth, setLogoWidth] = useState(120);
   const [logoWidthInput, setLogoWidthInput] = useState("120");
 
+  // --- Email colors ---
+  const [bgColor, setBgColor] = useState("#f9fafb");
+  const [btnColor, setBtnColor] = useState("#111827");
+  const [containerColor, setContainerColor] = useState("#ffffff");
+
   // --- Preview ---
   const [previewHtml, setPreviewHtml] = useState("");
   const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">("desktop");
@@ -206,13 +211,16 @@ export default function CampaignEditor() {
           storeName: STORE_NAME,
           logoUrl: STORE_LOGO_URL,
           logoWidth,
+          bgColor,
+          btnColor,
+          containerColor,
         })
       );
     }, 300);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [form.subject, form.bodyHtml, form.ctaText, form.ctaUrl, logoWidth]);
+  }, [form.subject, form.bodyHtml, form.ctaText, form.ctaUrl, logoWidth, bgColor, btnColor, containerColor]);
 
   // --- Template handlers ---
   const applyTemplate = useCallback((id: string) => {
@@ -363,6 +371,9 @@ export default function CampaignEditor() {
           customerIds: recipientMode === "manual" ? Array.from(selectedCustomerIds) : undefined,
           scheduledAt,
           recipientCount,
+          bgColor,
+          btnColor,
+          containerColor,
         };
 
         const res = await fetch("/api/campaigns/scheduled", {
@@ -409,6 +420,9 @@ export default function CampaignEditor() {
         ctaText: form.ctaText,
         ctaUrl: form.ctaUrl,
         logoWidth,
+        bgColor,
+        btnColor,
+        containerColor,
       };
 
       if (recipientMode === "manual" && selectedCustomerIds.size > 0) {
@@ -444,7 +458,7 @@ export default function CampaignEditor() {
     } finally {
       setSending(false);
     }
-  }, [form, app, applyTemplate, logoWidth, recipientMode, selectedCustomerIds, sendMode, scheduleDate, scheduleTime, recipientCount]);
+  }, [form, app, applyTemplate, logoWidth, recipientMode, selectedCustomerIds, sendMode, scheduleDate, scheduleTime, recipientCount, bgColor, btnColor, containerColor]);
 
   // --- Product picker: fetch products ---
   const fetchProducts = useCallback(
@@ -604,7 +618,7 @@ export default function CampaignEditor() {
     const selected = products.filter((p) => selectedProducts.has(p.id));
     if (selected.length === 0) return;
 
-    const html = buildProductGridHtml(selected, productLayout);
+    const html = buildProductGridHtml(selected, productLayout, btnColor);
     setForm((prev) => {
       // Remove any existing product blocks before inserting new ones
       const cleaned = prev.bodyHtml
@@ -622,7 +636,7 @@ export default function CampaignEditor() {
         `${selected.length} prodott${selected.length === 1 ? "o inserito" : "i inseriti"}`
       );
     }
-  }, [products, selectedProducts, productLayout, app]);
+  }, [products, selectedProducts, productLayout, app, btnColor]);
 
   const collectionOptions = useMemo(
     () => [
@@ -954,6 +968,140 @@ export default function CampaignEditor() {
                 placeholder="https://www.dodishop.it/collections/new"
                 autoComplete="off"
               />
+
+              {/* Colori email */}
+              <Text as="h3" variant="headingSm">
+                Colori email
+              </Text>
+              <InlineStack gap="300" wrap>
+                <Box minWidth="160px">
+                  <BlockStack gap="100">
+                    <Text as="span" variant="bodySm">Sfondo email</Text>
+                    <InlineStack gap="200" blockAlign="center">
+                      <div
+                        style={{
+                          width: "28px",
+                          height: "28px",
+                          borderRadius: "4px",
+                          backgroundColor: bgColor,
+                          border: "1px solid #d1d5db",
+                          cursor: "pointer",
+                          flexShrink: 0,
+                          position: "relative",
+                          overflow: "hidden",
+                        }}
+                      >
+                        <input
+                          type="color"
+                          value={bgColor}
+                          onChange={(e) => setBgColor(e.target.value)}
+                          style={{
+                            position: "absolute",
+                            inset: 0,
+                            width: "100%",
+                            height: "100%",
+                            opacity: 0,
+                            cursor: "pointer",
+                          }}
+                        />
+                      </div>
+                      <TextField
+                        label=""
+                        labelHidden
+                        value={bgColor}
+                        onChange={setBgColor}
+                        autoComplete="off"
+                        monospaced
+                      />
+                    </InlineStack>
+                  </BlockStack>
+                </Box>
+                <Box minWidth="160px">
+                  <BlockStack gap="100">
+                    <Text as="span" variant="bodySm">Sfondo contenuto</Text>
+                    <InlineStack gap="200" blockAlign="center">
+                      <div
+                        style={{
+                          width: "28px",
+                          height: "28px",
+                          borderRadius: "4px",
+                          backgroundColor: containerColor,
+                          border: "1px solid #d1d5db",
+                          cursor: "pointer",
+                          flexShrink: 0,
+                          position: "relative",
+                          overflow: "hidden",
+                        }}
+                      >
+                        <input
+                          type="color"
+                          value={containerColor}
+                          onChange={(e) => setContainerColor(e.target.value)}
+                          style={{
+                            position: "absolute",
+                            inset: 0,
+                            width: "100%",
+                            height: "100%",
+                            opacity: 0,
+                            cursor: "pointer",
+                          }}
+                        />
+                      </div>
+                      <TextField
+                        label=""
+                        labelHidden
+                        value={containerColor}
+                        onChange={setContainerColor}
+                        autoComplete="off"
+                        monospaced
+                      />
+                    </InlineStack>
+                  </BlockStack>
+                </Box>
+                <Box minWidth="160px">
+                  <BlockStack gap="100">
+                    <Text as="span" variant="bodySm">Bottone</Text>
+                    <InlineStack gap="200" blockAlign="center">
+                      <div
+                        style={{
+                          width: "28px",
+                          height: "28px",
+                          borderRadius: "4px",
+                          backgroundColor: btnColor,
+                          border: "1px solid #d1d5db",
+                          cursor: "pointer",
+                          flexShrink: 0,
+                          position: "relative",
+                          overflow: "hidden",
+                        }}
+                      >
+                        <input
+                          type="color"
+                          value={btnColor}
+                          onChange={(e) => setBtnColor(e.target.value)}
+                          style={{
+                            position: "absolute",
+                            inset: 0,
+                            width: "100%",
+                            height: "100%",
+                            opacity: 0,
+                            cursor: "pointer",
+                          }}
+                        />
+                      </div>
+                      <TextField
+                        label=""
+                        labelHidden
+                        value={btnColor}
+                        onChange={setBtnColor}
+                        autoComplete="off"
+                        monospaced
+                      />
+                    </InlineStack>
+                  </BlockStack>
+                </Box>
+              </InlineStack>
+
               <Box>
                 <Button
                   variant="primary"
