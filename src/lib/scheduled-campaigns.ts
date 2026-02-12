@@ -13,6 +13,7 @@ export interface ScheduledCampaign {
   status: "scheduled" | "sent" | "cancelled";
   createdAt: string;
   recipientCount: number;
+  qstashMessageId?: string;
 }
 
 const NAMESPACE = "email_campaigns";

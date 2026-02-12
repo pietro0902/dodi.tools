@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyShopifyWebhook } from "@/lib/verify-webhook";
 import { hasMarketingConsent } from "@/lib/consent";
 import { getResendClient } from "@/lib/resend";
+import { logActivity } from "@/lib/activity-log";
 import PostPurchaseEmail from "@/emails/post-purchase";
 import type { OrderWebhookPayload } from "@/types/shopify";
 
@@ -49,6 +50,16 @@ export async function POST(request: NextRequest) {
         logoUrl,
       }),
     });
+
+    try {
+      await logActivity({
+        type: "post_purchase_email",
+        summary: `Email post-acquisto inviata a ${order.email}`,
+        details: { customerEmail: order.email },
+      });
+    } catch (logErr) {
+      console.error("Activity log error:", logErr);
+    }
 
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error) {

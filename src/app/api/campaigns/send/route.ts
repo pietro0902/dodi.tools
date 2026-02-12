@@ -3,6 +3,7 @@ import { getOptInCustomers } from "@/lib/shopify";
 import { getResendClient } from "@/lib/resend";
 import { sendInBatches } from "@/lib/rate-limit";
 import { getSessionFromRequest } from "@/lib/session-token";
+import { logActivity } from "@/lib/activity-log";
 import CampaignEmail from "@/emails/campaign";
 
 interface CampaignBody {
@@ -79,6 +80,21 @@ export async function POST(request: NextRequest) {
         }),
       });
     });
+
+    try {
+      await logActivity({
+        type: "campaign_sent",
+        summary: `Campagna '${body.subject}' inviata a ${result.sent} iscritti`,
+        details: {
+          subject: body.subject,
+          sent: result.sent,
+          failed: result.failed,
+          recipientCount: customers.length,
+        },
+      });
+    } catch (logErr) {
+      console.error("Activity log error:", logErr);
+    }
 
     return NextResponse.json({
       totalCustomers: customers.length,

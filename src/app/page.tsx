@@ -35,6 +35,50 @@ interface ScheduledCampaignItem {
   recipientCount: number;
 }
 
+interface ActivityItem {
+  id: string;
+  type: string;
+  timestamp: string;
+  summary: string;
+}
+
+const ACTIVITY_BADGE_MAP: Record<string, { label: string; tone: "success" | "info" | "warning" | "critical" | "attention" }> = {
+  campaign_sent: { label: "Campagna", tone: "success" },
+  campaign_scheduled: { label: "Programmata", tone: "info" },
+  campaign_cancelled: { label: "Annullata", tone: "warning" },
+  scheduled_campaign_sent: { label: "Programmata", tone: "success" },
+  abandoned_cart_batch: { label: "Carrello", tone: "attention" },
+  welcome_email: { label: "Benvenuto", tone: "info" },
+  post_purchase_email: { label: "Post-acquisto", tone: "info" },
+};
+
+function ActivityBadge({ type }: { type: string }) {
+  const config = ACTIVITY_BADGE_MAP[type] || { label: type, tone: "info" as const };
+  return <Badge tone={config.tone}>{config.label}</Badge>;
+}
+
+function formatRelativeTime(isoDate: string): string {
+  const now = Date.now();
+  const then = new Date(isoDate).getTime();
+  const diffMs = now - then;
+
+  const minutes = Math.floor(diffMs / 60000);
+  if (minutes < 1) return "Adesso";
+  if (minutes < 60) return `${minutes} min fa`;
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} ${hours === 1 ? "ora" : "ore"} fa`;
+
+  const days = Math.floor(hours / 24);
+  if (days === 1) return "Ieri";
+  if (days < 7) return `${days} giorni fa`;
+
+  return new Date(isoDate).toLocaleDateString("it-IT", {
+    day: "numeric",
+    month: "short",
+  });
+}
+
 function useShopifyGlobal() {
   const [bridge, setBridge] = useState<typeof shopify | null>(
     typeof window !== "undefined" && typeof shopify !== "undefined"
@@ -70,6 +114,8 @@ export default function Dashboard() {
   const [scheduledLoading, setScheduledLoading] = useState(true);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [cancelConfirmId, setCancelConfirmId] = useState<string | null>(null);
+  const [activities, setActivities] = useState<ActivityItem[]>([]);
+  const [activitiesLoading, setActivitiesLoading] = useState(true);
 
   const router = useRouter();
 
@@ -119,6 +165,21 @@ export default function Dashboard() {
         // Non-critical, ignore
       } finally {
         setScheduledLoading(false);
+      }
+
+      // Fetch activity log
+      try {
+        const actRes = await fetch("/api/activity-log", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (actRes.ok) {
+          const actData = await actRes.json();
+          setActivities(actData.activities || []);
+        }
+      } catch {
+        // Non-critical, ignore
+      } finally {
+        setActivitiesLoading(false);
       }
     } catch (err) {
       setStatsError(
@@ -373,9 +434,40 @@ export default function Dashboard() {
               <Text as="h2" variant="headingMd">
                 Attività Recenti
               </Text>
-              <Text as="p" variant="bodySm" tone="subdued">
-                Il log delle attività sarà disponibile in una prossima versione.
-              </Text>
+              {activitiesLoading ? (
+                <InlineStack align="center">
+                  <Spinner size="small" />
+                </InlineStack>
+              ) : activities.length === 0 ? (
+                <Text as="p" variant="bodySm" tone="subdued">
+                  Nessuna attività recente
+                </Text>
+              ) : (
+                <BlockStack gap="300">
+                  {activities.slice(0, 10).map((activity) => (
+                    <div
+                      key={activity.id}
+                      style={{
+                        padding: "10px 12px",
+                        border: "1px solid #e5e7eb",
+                        borderRadius: "8px",
+                      }}
+                    >
+                      <InlineStack gap="300" blockAlign="center" wrap>
+                        <ActivityBadge type={activity.type} />
+                        <BlockStack gap="050">
+                          <Text as="span" variant="bodyMd">
+                            {activity.summary}
+                          </Text>
+                          <Text as="span" variant="bodySm" tone="subdued">
+                            {formatRelativeTime(activity.timestamp)}
+                          </Text>
+                        </BlockStack>
+                      </InlineStack>
+                    </div>
+                  ))}
+                </BlockStack>
+              )}
             </BlockStack>
           </Card>
         </Layout.Section>

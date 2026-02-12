@@ -3,9 +3,11 @@ import { getSessionFromRequest } from "@/lib/session-token";
 import {
   getScheduledCampaigns,
   addScheduledCampaign,
-  updateCampaignStatus,
+  saveScheduledCampaigns,
   type ScheduledCampaign,
 } from "@/lib/scheduled-campaigns";
+import { logActivity } from "@/lib/activity-log";
+import { getQStashClient, getAppUrl } from "@/lib/qstash";
 
 export async function GET(request: NextRequest) {
   try {
@@ -68,8 +70,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const campaignId = crypto.randomUUID();
+
+    // Publish to QStash with notBefore for delayed delivery
+    const qstash = getQStashClient();
+    const { messageId } = await qstash.publishJSON({
+      url: getAppUrl("/api/cron/scheduled-campaigns"),
+      body: { campaignId },
+      notBefore: Math.floor(scheduledDate.getTime() / 1000),
+      retries: 3,
+    });
+
     const campaign: ScheduledCampaign = {
-      id: crypto.randomUUID(),
+      id: campaignId,
       subject: body.subject,
       bodyHtml: body.bodyHtml,
       ctaText: body.ctaText || "",
@@ -81,9 +94,31 @@ export async function POST(request: NextRequest) {
       status: "scheduled",
       createdAt: new Date().toISOString(),
       recipientCount: body.recipientCount || 0,
+      qstashMessageId: messageId,
     };
 
     await addScheduledCampaign(campaign);
+
+    try {
+      const dateStr = scheduledDate.toLocaleString("it-IT", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+      await logActivity({
+        type: "campaign_scheduled",
+        summary: `Campagna '${body.subject}' programmata per ${dateStr}`,
+        details: {
+          subject: body.subject,
+          recipientCount: body.recipientCount,
+          scheduledAt: campaign.scheduledAt,
+        },
+      });
+    } catch (logErr) {
+      console.error("Activity log error:", logErr);
+    }
 
     return NextResponse.json({ campaign }, { status: 201 });
   } catch (error) {
@@ -111,7 +146,38 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    await updateCampaignStatus(id, "cancelled");
+    const campaigns = await getScheduledCampaigns();
+    const campaign = campaigns.find((c) => c.id === id);
+
+    if (!campaign) {
+      return NextResponse.json(
+        { error: `Campaign ${id} not found` },
+        { status: 404 }
+      );
+    }
+
+    // Cancel QStash message (may already have been delivered)
+    if (campaign.qstashMessageId) {
+      try {
+        const qstash = getQStashClient();
+        await qstash.messages.delete(campaign.qstashMessageId);
+      } catch (err) {
+        console.warn("Could not cancel QStash message (may already be delivered):", err);
+      }
+    }
+
+    campaign.status = "cancelled";
+    await saveScheduledCampaigns(campaigns);
+
+    try {
+      await logActivity({
+        type: "campaign_cancelled",
+        summary: `Campagna '${campaign.subject}' annullata`,
+        details: { subject: campaign.subject },
+      });
+    } catch (logErr) {
+      console.error("Activity log error:", logErr);
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

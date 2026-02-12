@@ -1,18 +1,18 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { getAbandonedCheckouts } from "@/lib/shopify";
 import { hasMarketingConsent } from "@/lib/consent";
 import { getResendClient } from "@/lib/resend";
 import { sendInBatches } from "@/lib/rate-limit";
 import { getAutomationSettings } from "@/lib/automation-settings";
 import { buildCartItemsHtml } from "@/lib/cart-html";
+import { logActivity } from "@/lib/activity-log";
+import { verifyQStashRequest } from "@/lib/qstash";
 import CampaignEmail from "@/emails/campaign";
 
-export async function GET(request: NextRequest) {
+export async function POST(request: Request) {
   try {
-    const authHeader = request.headers.get("authorization");
-    const cronSecret = process.env.CRON_SECRET;
-
-    if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+    const body = await verifyQStashRequest(request);
+    if (body === null) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -95,6 +95,20 @@ export async function GET(request: NextRequest) {
         }),
       });
     });
+
+    try {
+      await logActivity({
+        type: "abandoned_cart_batch",
+        summary: `Email carrello abbandonato: ${result.sent} inviate`,
+        details: {
+          sent: result.sent,
+          failed: result.failed,
+          recipientCount: eligible.length,
+        },
+      });
+    } catch (logErr) {
+      console.error("Activity log error:", logErr);
+    }
 
     return NextResponse.json({
       eligible: eligible.length,

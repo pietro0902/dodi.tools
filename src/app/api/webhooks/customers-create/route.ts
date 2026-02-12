@@ -3,6 +3,7 @@ import { verifyShopifyWebhook } from "@/lib/verify-webhook";
 import { hasMarketingConsent } from "@/lib/consent";
 import { getResendClient } from "@/lib/resend";
 import { getAutomationSettings } from "@/lib/automation-settings";
+import { logActivity } from "@/lib/activity-log";
 import CampaignEmail from "@/emails/campaign";
 import type { CustomerWebhookPayload } from "@/types/shopify";
 
@@ -58,6 +59,16 @@ export async function POST(request: NextRequest) {
         logoUrl,
       }),
     });
+
+    try {
+      await logActivity({
+        type: "welcome_email",
+        summary: `Email di benvenuto inviata a ${customer.email}`,
+        details: { customerEmail: customer.email },
+      });
+    } catch (logErr) {
+      console.error("Activity log error:", logErr);
+    }
 
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error) {
