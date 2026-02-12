@@ -15,7 +15,6 @@ import {
   Banner,
   Spinner,
   Badge,
-  DropZone,
   Select,
   Checkbox,
   Thumbnail,
@@ -26,6 +25,7 @@ import type { CustomTemplate } from "@/lib/custom-templates";
 import type { EmailBlock } from "@/lib/email-blocks";
 import { templateToBlocks } from "@/lib/email-blocks";
 import { BlockEditor } from "@/components/block-editor";
+import { ImagePickerModal } from "@/components/image-picker-modal";
 import type { ProductLayout } from "@/lib/product-html";
 import type { ShopifyProduct, ShopifyCollection } from "@/types/shopify";
 
@@ -112,12 +112,9 @@ export default function TemplatesPage() {
   const [productLayout, setProductLayout] = useState<ProductLayout>("grid");
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // --- Image uploader ---
+  // --- Image picker ---
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [activeImageBlockId, setActiveImageBlockId] = useState<string | null>(null);
-  const [imageUrl, setImageUrl] = useState("");
-  const [imageAlt, setImageAlt] = useState("");
-  const [imageUploading, setImageUploading] = useState(false);
 
   const sortOptions = [
     { label: "Best seller", value: "BEST_SELLING" },
@@ -452,59 +449,35 @@ export default function TemplatesPage() {
     [collections]
   );
 
-  // --- Image uploader ---
   const handleOpenImageUploader = useCallback((blockId: string) => {
     setActiveImageBlockId(blockId);
     setImageModalOpen(true);
-    setImageUrl("");
-    setImageAlt("");
   }, []);
 
-  const handleImageDrop = useCallback(
-    async (_dropFiles: File[], acceptedFiles: File[]) => {
-      if (!app || acceptedFiles.length === 0) return;
-      const file = acceptedFiles[0];
-      setImageUploading(true);
-      try {
-        const token = await app.idToken();
-        const formData = new FormData();
-        formData.append("file", file);
-        const res = await fetch("/api/files/upload", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-          body: formData,
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-        setImageUrl(data.url);
-        app.toast.show("Immagine caricata");
-      } catch (err) {
-        app.toast.show(
-          err instanceof Error ? err.message : "Errore nel caricamento",
-          { isError: true }
-        );
-      } finally {
-        setImageUploading(false);
-      }
-    },
-    [app]
-  );
-
-  const handleConfirmImage = useCallback(() => {
-    if (!activeImageBlockId || !imageUrl) return;
+  const handleImagePickerConfirm = useCallback((url: string, alt: string) => {
+    if (!activeImageBlockId || !url) return;
     setEditorBlocks((prev) =>
-      prev.map((b) =>
-        b.id === activeImageBlockId && b.type === "image"
-          ? { ...b, src: imageUrl, alt: imageAlt }
-          : b
-      )
+      prev.map((b) => {
+        if (b.id !== activeImageBlockId) return b;
+        if (b.type === "image") return { ...b, src: url, alt };
+        if (b.type === "logo") return { ...b, src: url, alt };
+        return b;
+      })
     );
     setImageModalOpen(false);
-    setImageUrl("");
-    setImageAlt("");
     setActiveImageBlockId(null);
     if (app) app.toast.show("Immagine inserita");
-  }, [activeImageBlockId, imageUrl, imageAlt, app]);
+  }, [activeImageBlockId, app]);
+
+  const handleImagePickerClose = useCallback(() => {
+    setImageModalOpen(false);
+    setActiveImageBlockId(null);
+  }, []);
+
+  const getAppToken = useCallback(async () => {
+    if (!app) throw new Error("App not ready");
+    return app.idToken();
+  }, [app]);
 
   return (
     <Page
@@ -962,112 +935,13 @@ export default function TemplatesPage() {
         </Modal.Section>
       </Modal>
 
-      {/* Image uploader modal */}
-      <Modal
+      {/* Image picker modal */}
+      <ImagePickerModal
         open={imageModalOpen}
-        onClose={() => {
-          setImageModalOpen(false);
-          setImageUrl("");
-          setImageAlt("");
-          setActiveImageBlockId(null);
-        }}
-        title="Carica immagine"
-        primaryAction={{
-          content: "Inserisci nel blocco",
-          onAction: handleConfirmImage,
-          disabled: !imageUrl || imageUploading,
-        }}
-        secondaryActions={[
-          {
-            content: "Annulla",
-            onAction: () => {
-              setImageModalOpen(false);
-              setImageUrl("");
-              setImageAlt("");
-              setActiveImageBlockId(null);
-            },
-          },
-        ]}
-      >
-        <Modal.Section>
-          <BlockStack gap="400">
-            {imageUploading ? (
-              <Box padding="800">
-                <BlockStack gap="300" align="center">
-                  <InlineStack align="center">
-                    <Spinner size="large" />
-                  </InlineStack>
-                  <Text as="p" alignment="center" tone="subdued">
-                    Caricamento in corso...
-                  </Text>
-                </BlockStack>
-              </Box>
-            ) : (
-              <DropZone
-                accept="image/jpeg, image/png, image/gif, image/webp"
-                type="image"
-                allowMultiple={false}
-                onDrop={handleImageDrop}
-              >
-                <DropZone.FileUpload
-                  actionTitle="Carica immagine"
-                  actionHint="o trascina qui un file JPG, PNG, GIF, WebP"
-                />
-              </DropZone>
-            )}
-
-            <InlineStack align="center">
-              <Text as="p" variant="bodySm" tone="subdued">
-                oppure inserisci un URL diretto
-              </Text>
-            </InlineStack>
-
-            <TextField
-              label="URL immagine"
-              value={imageUrl}
-              onChange={setImageUrl}
-              placeholder="https://cdn.shopify.com/..."
-              autoComplete="off"
-            />
-            <TextField
-              label="Testo alternativo"
-              value={imageAlt}
-              onChange={setImageAlt}
-              placeholder="Descrizione immagine"
-              autoComplete="off"
-              helpText="Opzionale. Viene mostrato se l'immagine non si carica."
-            />
-
-            {imageUrl && (
-              <Box>
-                <Text as="p" variant="bodySm" tone="subdued">
-                  Anteprima:
-                </Text>
-                <div
-                  style={{
-                    marginTop: "8px",
-                    border: "1px solid #e5e7eb",
-                    borderRadius: "8px",
-                    padding: "8px",
-                    textAlign: "center",
-                  }}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={imageUrl}
-                    alt={imageAlt || "Anteprima"}
-                    style={{
-                      maxWidth: "100%",
-                      maxHeight: "200px",
-                      borderRadius: "6px",
-                    }}
-                  />
-                </div>
-              </Box>
-            )}
-          </BlockStack>
-        </Modal.Section>
-      </Modal>
+        onClose={handleImagePickerClose}
+        onConfirm={handleImagePickerConfirm}
+        getToken={getAppToken}
+      />
     </Page>
   );
 }

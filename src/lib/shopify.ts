@@ -450,3 +450,60 @@ export async function getCollections(): Promise<ShopifyCollection[]> {
     handle: node.handle,
   }));
 }
+
+export interface ShopifyFile {
+  id: string;
+  alt: string;
+  url: string;
+  filename: string;
+  createdAt: string;
+}
+
+export async function getShopifyFiles(query?: string, limit = 24): Promise<ShopifyFile[]> {
+  const searchQuery = query
+    ? `filename:${query}* AND media_type:IMAGE`
+    : "media_type:IMAGE";
+
+  const data = await graphqlQuery<{
+    files: {
+      edges: Array<{
+        node: {
+          id: string;
+          alt: string | null;
+          createdAt: string;
+          image?: { url: string };
+          fileStatus: string;
+          filename: string;
+        };
+      }>;
+    };
+  }>(
+    `query Files($query: String!, $first: Int!) {
+      files(first: $first, query: $query, sortKey: CREATED_AT, reverse: true) {
+        edges {
+          node {
+            id
+            alt
+            createdAt
+            fileStatus
+            filename
+            ... on MediaImage {
+              image { url }
+            }
+          }
+        }
+      }
+    }`,
+    { query: searchQuery, first: limit }
+  );
+
+  return data.files.edges
+    .filter(({ node }) => node.fileStatus === "READY" && node.image?.url)
+    .map(({ node }) => ({
+      id: node.id,
+      alt: node.alt || "",
+      url: node.image!.url,
+      filename: node.filename,
+      createdAt: node.createdAt,
+    }));
+}
