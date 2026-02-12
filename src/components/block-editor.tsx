@@ -348,20 +348,31 @@ export function BlockEditor({
                   placeholder="Nome del negozio"
                   autoComplete="off"
                 />
-                <TextField
-                  label="Larghezza (px)"
-                  type="number"
-                  value={String(block.width)}
-                  onChange={(v) => {
-                    const n = parseInt(v, 10);
-                    if (!isNaN(n) && n > 0) updateBlock(block.id, { width: n });
-                  }}
-                  min={40}
-                  max={400}
-                  suffix="px"
-                  autoComplete="off"
-                  helpText="Min 40px, max 400px"
-                />
+                <InlineStack gap="300" blockAlign="end">
+                  <Box minWidth="0" width="100%">
+                    <TextField
+                      label="Larghezza (px)"
+                      type="number"
+                      value={String(block.width)}
+                      onChange={(v) => {
+                        const n = parseInt(v, 10);
+                        if (!isNaN(n) && n > 0) updateBlock(block.id, { width: n });
+                      }}
+                      min={40}
+                      max={400}
+                      suffix="px"
+                      autoComplete="off"
+                      helpText="Min 40px, max 400px"
+                    />
+                  </Box>
+                  <Button
+                    onClick={() => updateBlock(block.id, { inverted: !block.inverted })}
+                    variant={block.inverted ? "primary" : "secondary"}
+                    size="slim"
+                  >
+                    Inverti
+                  </Button>
+                </InlineStack>
                 {block.src && (
                   <div
                     style={{
@@ -369,6 +380,7 @@ export function BlockEditor({
                       borderRadius: "6px",
                       padding: "8px",
                       textAlign: "center",
+                      backgroundColor: block.inverted ? "#1a1a1a" : "transparent",
                     }}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -379,6 +391,7 @@ export function BlockEditor({
                         maxWidth: "100%",
                         maxHeight: "80px",
                         borderRadius: "4px",
+                        filter: block.inverted ? "invert(1)" : "none",
                       }}
                     />
                   </div>

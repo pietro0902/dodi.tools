@@ -39,6 +39,7 @@ export interface LogoBlock {
   src: string;
   alt: string;
   width: number;
+  inverted?: boolean;
 }
 
 export interface DividerBlock {
@@ -108,7 +109,8 @@ export function blocksToHtml(blocks: EmailBlock[], btnColor: string): string {
 
         case "logo": {
           if (!block.src) return "";
-          return `<div style="text-align:center;padding:24px 0"><img src="${block.src}" alt="${block.alt || ""}" width="${block.width}" style="display:block;margin:0 auto;height:auto" /></div>`;
+          const invertStyle = block.inverted ? ";filter:invert(1)" : "";
+          return `<div style="text-align:center;padding:24px 0"><img src="${block.src}" alt="${block.alt || ""}" width="${block.width}" style="display:block;margin:0 auto;height:auto${invertStyle}" /></div>`;
         }
 
         case "divider":
