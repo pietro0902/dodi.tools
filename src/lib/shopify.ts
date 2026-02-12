@@ -428,23 +428,46 @@ async function pollForFileUrl(
 }
 
 export async function getCollections(): Promise<ShopifyCollection[]> {
-  const data = await graphqlQuery<{
-    collections: {
-      edges: Array<{
-        node: { id: string; title: string; handle: string };
-      }>;
-    };
-  }>(
-    `query Collections {
-      collections(first: 100, sortKey: TITLE) {
-        edges {
-          node { id title handle }
-        }
-      }
-    }`
-  );
+  const all: Array<{ id: string; title: string; handle: string }> = [];
+  let cursor: string | null = null;
+  let hasNext = true;
 
-  return data.collections.edges.map(({ node }) => ({
+  while (hasNext) {
+    const variables: Record<string, unknown> = { first: 250 };
+    if (cursor) variables.after = cursor;
+
+    const cursorParam: string = cursor ? ", $after: String" : "";
+    const cursorArg: string = cursor ? ", after: $after" : "";
+
+    const data = await graphqlQuery<{
+      collections: {
+        edges: Array<{
+          node: { id: string; title: string; handle: string };
+          cursor: string;
+        }>;
+        pageInfo: { hasNextPage: boolean };
+      };
+    }>(
+      `query Collections($first: Int!${cursorParam}) {
+        collections(first: $first, sortKey: TITLE${cursorArg}) {
+          edges {
+            node { id title handle }
+            cursor
+          }
+          pageInfo { hasNextPage }
+        }
+      }`,
+      variables
+    );
+
+    for (const edge of data.collections.edges) {
+      all.push(edge.node);
+      cursor = edge.cursor;
+    }
+    hasNext = data.collections.pageInfo.hasNextPage;
+  }
+
+  return all.map((node) => ({
     id: node.id,
     title: node.title,
     handle: node.handle,
