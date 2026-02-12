@@ -27,8 +27,14 @@ import {
   type CampaignTemplate,
 } from "@/lib/campaign-templates";
 import { buildPreviewHtml } from "@/lib/preview-wrapper";
-import { buildProductGridHtml, type ProductLayout } from "@/lib/product-html";
+import type { ProductLayout } from "@/lib/product-html";
 import type { ShopifyProduct, ShopifyCollection } from "@/types/shopify";
+import {
+  type EmailBlock,
+  blocksToHtml,
+  templateToBlocks,
+} from "@/lib/email-blocks";
+import { BlockEditor } from "@/components/block-editor";
 
 interface CustomerListItem {
   id: number;
@@ -77,15 +83,6 @@ const sortOptions = [
   { label: "Più recenti", value: "CREATED_AT" },
 ];
 
-function isFormDirty(form: CampaignTemplate, template: CampaignTemplate) {
-  return (
-    form.subject !== template.subject ||
-    form.bodyHtml !== template.bodyHtml ||
-    form.ctaText !== template.ctaText ||
-    form.ctaUrl !== template.ctaUrl
-  );
-}
-
 function formatScheduleDate(date: string, time: string): string {
   if (!date || !time) return "";
   const d = new Date(`${date}T${time}`);
@@ -109,20 +106,35 @@ function formatPrice(amount: string, currency: string): string {
   return `${num.toFixed(2)} ${currency}`;
 }
 
+/** Check if blocks have at least one block with meaningful content */
+function hasBlockContent(blocks: EmailBlock[]): boolean {
+  return blocks.some((b) => {
+    switch (b.type) {
+      case "text": return b.html.trim().length > 0;
+      case "image": return b.src.trim().length > 0;
+      case "button": return b.text.trim().length > 0 && b.url.trim().length > 0;
+      case "products": return b.products.length > 0;
+      case "divider": return true;
+    }
+  });
+}
+
 export default function CampaignEditor() {
   const app = useShopifyGlobal();
   const router = useRouter();
 
   // --- Template & form state ---
   const [selectedTemplateId, setSelectedTemplateId] = useState("blank");
-  const [form, setForm] = useState<CampaignTemplate>({
-    ...CAMPAIGN_TEMPLATES[0],
-  });
+  const [subject, setSubject] = useState("");
+  const [blocks, setBlocks] = useState<EmailBlock[]>([]);
+  const [blocksDirty, setBlocksDirty] = useState(false);
   const [sending, setSending] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [pendingTemplateId, setPendingTemplateId] = useState<string | null>(
-    null
-  );
+  const [pendingTemplateId, setPendingTemplateId] = useState<string | null>(null);
+
+  // --- Block-specific modal targets ---
+  const [activeProductBlockId, setActiveProductBlockId] = useState<string | null>(null);
+  const [activeImageBlockId, setActiveImageBlockId] = useState<string | null>(null);
 
   // --- Step flow ---
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -156,7 +168,7 @@ export default function CampaignEditor() {
   const previewContainerRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // --- Image inserter ---
+  // --- Image uploader modal ---
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [imageUrl, setImageUrl] = useState("");
   const [imageAlt, setImageAlt] = useState("");
@@ -171,15 +183,14 @@ export default function CampaignEditor() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCollection, setSelectedCollection] = useState("");
   const [selectedSort, setSelectedSort] = useState("BEST_SELLING");
-  const [selectedProducts, setSelectedProducts] = useState<Set<string>>(
-    new Set()
-  );
+  const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
   const [productLayout, setProductLayout] = useState<ProductLayout>("grid");
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const currentTemplate = useMemo(
-    () => CAMPAIGN_TEMPLATES.find((t) => t.id === selectedTemplateId)!,
-    [selectedTemplateId]
+  // --- Assembled HTML from blocks (for preview & send) ---
+  const assembledHtml = useMemo(
+    () => blocksToHtml(blocks, btnColor),
+    [blocks, btnColor]
   );
 
   // --- Preview scale for desktop mode ---
@@ -193,7 +204,6 @@ export default function CampaignEditor() {
         setPreviewScale(1);
       }
     }
-    // Delay measurement to ensure DOM has updated after mode switch
     requestAnimationFrame(() => requestAnimationFrame(updateScale));
     window.addEventListener("resize", updateScale);
     return () => window.removeEventListener("resize", updateScale);
@@ -205,10 +215,10 @@ export default function CampaignEditor() {
     debounceRef.current = setTimeout(() => {
       setPreviewHtml(
         buildPreviewHtml({
-          subject: form.subject,
-          bodyHtml: form.bodyHtml,
-          ctaText: form.ctaText,
-          ctaUrl: form.ctaUrl,
+          subject,
+          bodyHtml: assembledHtml,
+          ctaText: "",
+          ctaUrl: "",
           storeName: STORE_NAME,
           logoUrl: STORE_LOGO_URL,
           logoWidth,
@@ -222,26 +232,28 @@ export default function CampaignEditor() {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [form.subject, form.bodyHtml, form.ctaText, form.ctaUrl, logoWidth, bgColor, btnColor, containerColor, textColor]);
+  }, [subject, assembledHtml, logoWidth, bgColor, btnColor, containerColor, textColor]);
 
   // --- Template handlers ---
   const applyTemplate = useCallback((id: string) => {
     const tpl = CAMPAIGN_TEMPLATES.find((t) => t.id === id);
     if (!tpl) return;
     setSelectedTemplateId(id);
-    setForm({ ...tpl });
+    setSubject(tpl.subject);
+    setBlocks(tpl.blocks ? tpl.blocks.map((b) => ({ ...b })) : templateToBlocks(tpl));
+    setBlocksDirty(false);
   }, []);
 
   const handleTemplateChange = useCallback(
     (value: string) => {
-      if (isFormDirty(form, currentTemplate)) {
+      if (blocksDirty) {
         setPendingTemplateId(value);
         setConfirmOpen(true);
       } else {
         applyTemplate(value);
       }
     },
-    [form, currentTemplate, applyTemplate]
+    [blocksDirty, applyTemplate]
   );
 
   const handleConfirmSwitch = useCallback(() => {
@@ -255,12 +267,10 @@ export default function CampaignEditor() {
     setPendingTemplateId(null);
   }, []);
 
-  const handleFieldChange = useCallback(
-    (field: keyof CampaignTemplate) => (value: string) => {
-      setForm((prev) => ({ ...prev, [field]: value }));
-    },
-    []
-  );
+  const handleBlocksChange = useCallback((newBlocks: EmailBlock[]) => {
+    setBlocks(newBlocks);
+    setBlocksDirty(true);
+  }, []);
 
   // --- Step 2: fetch customers ---
   const fetchCustomers = useCallback(async () => {
@@ -288,13 +298,17 @@ export default function CampaignEditor() {
   }, [app]);
 
   const handleGoToStep2 = useCallback(() => {
-    if (!form.subject || !form.bodyHtml) {
-      if (app) app.toast.show("Compila almeno oggetto e corpo HTML", { isError: true });
+    if (!subject.trim()) {
+      if (app) app.toast.show("Inserisci l'oggetto dell'email", { isError: true });
+      return;
+    }
+    if (!hasBlockContent(blocks)) {
+      if (app) app.toast.show("Aggiungi almeno un blocco con contenuto", { isError: true });
       return;
     }
     setStep(2);
     fetchCustomers();
-  }, [form.subject, form.bodyHtml, app, fetchCustomers]);
+  }, [subject, blocks, app, fetchCustomers]);
 
   const handleBackToStep1 = useCallback(() => {
     setStep(1);
@@ -302,7 +316,6 @@ export default function CampaignEditor() {
 
   const handleGoToStep3 = useCallback(() => {
     if (recipientMode === "manual" && selectedCustomerIds.size === 0) return;
-    // Default schedule: tomorrow, same time rounded to 15 min
     if (!scheduleDate || !scheduleTime) {
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
@@ -349,25 +362,25 @@ export default function CampaignEditor() {
   // --- Send or schedule campaign ---
   const handleSend = useCallback(async () => {
     if (!app) return;
-    if (!form.subject || !form.bodyHtml) {
-      app.toast.show("Compila almeno oggetto e corpo HTML", { isError: true });
+    const finalHtml = blocksToHtml(blocks, btnColor);
+    if (!subject.trim() || !finalHtml.trim()) {
+      app.toast.show("Compila almeno oggetto e contenuto", { isError: true });
       return;
     }
 
     setSendConfirmOpen(false);
 
     if (sendMode === "schedule") {
-      // Schedule campaign
       setScheduling(true);
       try {
         const token = await app.idToken();
         const scheduledAt = new Date(`${scheduleDate}T${scheduleTime}`).toISOString();
 
         const payload = {
-          subject: form.subject,
-          bodyHtml: form.bodyHtml,
-          ctaText: form.ctaText,
-          ctaUrl: form.ctaUrl,
+          subject,
+          bodyHtml: finalHtml,
+          ctaText: "",
+          ctaUrl: "",
           logoWidth,
           recipientMode,
           customerIds: recipientMode === "manual" ? Array.from(selectedCustomerIds) : undefined,
@@ -418,10 +431,10 @@ export default function CampaignEditor() {
       const token = await app.idToken();
 
       const payload: Record<string, unknown> = {
-        subject: form.subject,
-        html: form.bodyHtml,
-        ctaText: form.ctaText,
-        ctaUrl: form.ctaUrl,
+        subject,
+        html: finalHtml,
+        ctaText: "",
+        ctaUrl: "",
         logoWidth,
         bgColor,
         btnColor,
@@ -462,7 +475,7 @@ export default function CampaignEditor() {
     } finally {
       setSending(false);
     }
-  }, [form, app, applyTemplate, logoWidth, recipientMode, selectedCustomerIds, sendMode, scheduleDate, scheduleTime, recipientCount, bgColor, btnColor, containerColor, textColor]);
+  }, [blocks, subject, app, applyTemplate, logoWidth, recipientMode, selectedCustomerIds, sendMode, scheduleDate, scheduleTime, recipientCount, bgColor, btnColor, containerColor, textColor]);
 
   // --- Product picker: fetch products ---
   const fetchProducts = useCallback(
@@ -516,17 +529,35 @@ export default function CampaignEditor() {
     }
   }, [app, collectionsLoaded]);
 
-  // --- Open picker ---
-  const handleOpenPicker = useCallback(() => {
-    setPickerOpen(true);
-    setSelectedProducts(new Set());
-    setSearchQuery("");
-    setSelectedCollection("");
-    setSelectedSort("BEST_SELLING");
-    setProductLayout("grid");
-    fetchCollections();
-    fetchProducts(undefined, undefined, "BEST_SELLING");
-  }, [fetchCollections, fetchProducts]);
+  // --- Open product picker for a specific block ---
+  const handleOpenProductPicker = useCallback(
+    (blockId: string) => {
+      setActiveProductBlockId(blockId);
+      setPickerOpen(true);
+      setSelectedProducts(new Set());
+      setSearchQuery("");
+      setSelectedCollection("");
+      setSelectedSort("BEST_SELLING");
+      // Read current layout from the block
+      const block = blocks.find((b) => b.id === blockId);
+      if (block?.type === "products") {
+        setProductLayout(block.layout);
+      } else {
+        setProductLayout("grid");
+      }
+      fetchCollections();
+      fetchProducts(undefined, undefined, "BEST_SELLING");
+    },
+    [blocks, fetchCollections, fetchProducts]
+  );
+
+  // --- Open image uploader for a specific block ---
+  const handleOpenImageUploader = useCallback((blockId: string) => {
+    setActiveImageBlockId(blockId);
+    setImageModalOpen(true);
+    setImageUrl("");
+    setImageAlt("");
+  }, []);
 
   // --- Search with debounce ---
   const handleSearchChange = useCallback(
@@ -571,20 +602,29 @@ export default function CampaignEditor() {
     });
   }, []);
 
-  // --- Insert image into body ---
-  const handleInsertImage = useCallback(() => {
-    if (!imageUrl) return;
-    const alt = imageAlt || "Immagine";
-    const imgHtml = `\n<img src="${imageUrl}" alt="${alt}" style="display:block;max-width:100%;height:auto;margin:16px auto;border-radius:8px" />\n`;
-    setForm((prev) => ({
-      ...prev,
-      bodyHtml: prev.bodyHtml + imgHtml,
-    }));
-    setImageModalOpen(false);
-    setImageUrl("");
-    setImageAlt("");
-    if (app) app.toast.show("Immagine inserita");
-  }, [imageUrl, imageAlt, app]);
+  // --- Insert selected products into the active products block ---
+  const handleInsertProducts = useCallback(() => {
+    if (!activeProductBlockId) return;
+    const selected = products.filter((p) => selectedProducts.has(p.id));
+    if (selected.length === 0) return;
+
+    setBlocks((prev) =>
+      prev.map((b) =>
+        b.id === activeProductBlockId && b.type === "products"
+          ? { ...b, products: selected, layout: productLayout }
+          : b
+      )
+    );
+    setBlocksDirty(true);
+    setPickerOpen(false);
+    setSelectedProducts(new Set());
+    setActiveProductBlockId(null);
+    if (app) {
+      app.toast.show(
+        `${selected.length} prodott${selected.length === 1 ? "o selezionato" : "i selezionati"}`
+      );
+    }
+  }, [activeProductBlockId, products, selectedProducts, productLayout, app]);
 
   // --- Upload image file to Shopify CDN ---
   const handleImageDrop = useCallback(
@@ -617,30 +657,23 @@ export default function CampaignEditor() {
     [app]
   );
 
-  // --- Insert selected products into body ---
-  const handleInsertProducts = useCallback(() => {
-    const selected = products.filter((p) => selectedProducts.has(p.id));
-    if (selected.length === 0) return;
-
-    const html = buildProductGridHtml(selected, productLayout, btnColor);
-    setForm((prev) => {
-      // Remove any existing product blocks before inserting new ones
-      const cleaned = prev.bodyHtml
-        .replace(/\n?<!-- Prodotti(?:\s*\(scorrimento\))? -->[\s\S]*?<\/div>\n?/g, "")
-        .trimEnd();
-      return {
-        ...prev,
-        bodyHtml: cleaned + html,
-      };
-    });
-    setPickerOpen(false);
-    setSelectedProducts(new Set());
-    if (app) {
-      app.toast.show(
-        `${selected.length} prodott${selected.length === 1 ? "o inserito" : "i inseriti"}`
-      );
-    }
-  }, [products, selectedProducts, productLayout, app, btnColor]);
+  // --- Confirm image for the active image block ---
+  const handleConfirmImage = useCallback(() => {
+    if (!activeImageBlockId || !imageUrl) return;
+    setBlocks((prev) =>
+      prev.map((b) =>
+        b.id === activeImageBlockId && b.type === "image"
+          ? { ...b, src: imageUrl, alt: imageAlt }
+          : b
+      )
+    );
+    setBlocksDirty(true);
+    setImageModalOpen(false);
+    setImageUrl("");
+    setImageAlt("");
+    setActiveImageBlockId(null);
+    if (app) app.toast.show("Immagine inserita");
+  }, [activeImageBlockId, imageUrl, imageAlt, app]);
 
   const collectionOptions = useMemo(
     () => [
@@ -679,7 +712,7 @@ export default function CampaignEditor() {
       </Layout>
 
       {step === 2 ? (
-        /* ──── STEP 2: Recipients & Send ──── */
+        /* ──── STEP 2: Recipients ──── */
         <Layout>
           <Layout.Section>
             <Card>
@@ -847,7 +880,7 @@ export default function CampaignEditor() {
                       Riepilogo
                     </Text>
                     <Text as="span" variant="bodyMd">
-                      {`Oggetto: ${form.subject}`}
+                      {`Oggetto: ${subject}`}
                     </Text>
                     <Text as="span" variant="bodyMd">
                       {`Destinatari: ${recipientCount}`}
@@ -884,7 +917,7 @@ export default function CampaignEditor() {
           </Layout.Section>
         </Layout>
       ) : (
-      /* ──── STEP 1: Content editor (existing) ──── */
+      /* ──── STEP 1: Content editor (block-based) ──── */
       <Layout>
 
       {/* Template selector */}
@@ -924,7 +957,7 @@ export default function CampaignEditor() {
           </Card>
         </Layout.Section>
 
-        {/* Editor */}
+        {/* Block editor */}
         <Layout.Section>
           <Card>
             <BlockStack gap="400">
@@ -933,44 +966,17 @@ export default function CampaignEditor() {
               </Text>
               <TextField
                 label="Oggetto"
-                value={form.subject}
-                onChange={handleFieldChange("subject")}
+                value={subject}
+                onChange={(v) => { setSubject(v); setBlocksDirty(true); }}
                 placeholder="Es: Nuova collezione primavera"
                 autoComplete="off"
               />
-              <TextField
-                label="Corpo HTML"
-                value={form.bodyHtml}
-                onChange={handleFieldChange("bodyHtml")}
-                multiline={12}
-                placeholder="<p>Ciao {{name}}, scopri le novità...</p>"
-                helpText="Usa {{name}} per il nome destinatario. Usa il bottone qui sotto per inserire prodotti."
-                autoComplete="off"
-              />
-              <InlineStack gap="300">
-                <Button onClick={handleOpenPicker} variant="secondary">
-                  Inserisci prodotti
-                </Button>
-                <Button
-                  onClick={() => setImageModalOpen(true)}
-                  variant="secondary"
-                >
-                  Inserisci immagine
-                </Button>
-              </InlineStack>
-              <TextField
-                label="Testo CTA"
-                value={form.ctaText}
-                onChange={handleFieldChange("ctaText")}
-                placeholder="Scopri ora"
-                autoComplete="off"
-              />
-              <TextField
-                label="URL CTA"
-                value={form.ctaUrl}
-                onChange={handleFieldChange("ctaUrl")}
-                placeholder="https://www.dodishop.it/collections/new"
-                autoComplete="off"
+
+              <BlockEditor
+                blocks={blocks}
+                onChange={handleBlocksChange}
+                onOpenProductPicker={handleOpenProductPicker}
+                onOpenImageUploader={handleOpenImageUploader}
               />
 
               {/* Colori email */}
@@ -1187,7 +1193,7 @@ export default function CampaignEditor() {
               </InlineStack>
               {/* Hidden div to measure available width */}
               <div ref={previewContainerRef} style={{ width: "100%", height: 0, overflow: "hidden" }} />
-              {!form.subject && !form.bodyHtml ? (
+              {!subject && blocks.length === 0 ? (
                 <Banner tone="info">
                   <p>
                     Compila i campi sopra per visualizzare l&apos;anteprima
@@ -1265,9 +1271,9 @@ export default function CampaignEditor() {
           <Text as="p">
             {sendMode === "now"
               ? recipientMode === "all"
-                ? `Stai per inviare la campagna "${form.subject}" a tutti i ${customerList.length} iscritti. Confermi?`
-                : `Stai per inviare la campagna "${form.subject}" a ${selectedCustomerIds.size} destinatar${selectedCustomerIds.size === 1 ? "io" : "i"} selezionat${selectedCustomerIds.size === 1 ? "o" : "i"}. Confermi?`
-              : `Stai per schedulare la campagna "${form.subject}" per ${formatScheduleDate(scheduleDate, scheduleTime)} a ${recipientCount} destinatar${recipientCount === 1 ? "io" : "i"}. Confermi?`}
+                ? `Stai per inviare la campagna "${subject}" a tutti i ${customerList.length} iscritti. Confermi?`
+                : `Stai per inviare la campagna "${subject}" a ${selectedCustomerIds.size} destinatar${selectedCustomerIds.size === 1 ? "io" : "i"} selezionat${selectedCustomerIds.size === 1 ? "o" : "i"}. Confermi?`
+              : `Stai per schedulare la campagna "${subject}" per ${formatScheduleDate(scheduleDate, scheduleTime)} a ${recipientCount} destinatar${recipientCount === 1 ? "io" : "i"}. Confermi?`}
           </Text>
         </Modal.Section>
       </Modal>
@@ -1297,15 +1303,15 @@ export default function CampaignEditor() {
       {/* Product picker modal */}
       <Modal
         open={pickerOpen}
-        onClose={() => setPickerOpen(false)}
-        title="Inserisci prodotti"
+        onClose={() => { setPickerOpen(false); setActiveProductBlockId(null); }}
+        title="Scegli prodotti"
         primaryAction={{
           content: `Inserisci ${selectedProducts.size > 0 ? `(${selectedProducts.size})` : ""}`,
           onAction: handleInsertProducts,
           disabled: selectedProducts.size === 0,
         }}
         secondaryActions={[
-          { content: "Annulla", onAction: () => setPickerOpen(false) },
+          { content: "Annulla", onAction: () => { setPickerOpen(false); setActiveProductBlockId(null); } },
         ]}
       >
         <Modal.Section>
@@ -1427,18 +1433,19 @@ export default function CampaignEditor() {
         </Modal.Section>
       </Modal>
 
-      {/* Image inserter modal */}
+      {/* Image uploader modal */}
       <Modal
         open={imageModalOpen}
         onClose={() => {
           setImageModalOpen(false);
           setImageUrl("");
           setImageAlt("");
+          setActiveImageBlockId(null);
         }}
-        title="Inserisci immagine"
+        title="Carica immagine"
         primaryAction={{
-          content: "Inserisci nell'email",
-          onAction: handleInsertImage,
+          content: "Inserisci nel blocco",
+          onAction: handleConfirmImage,
           disabled: !imageUrl || imageUploading,
         }}
         secondaryActions={[
@@ -1448,6 +1455,7 @@ export default function CampaignEditor() {
               setImageModalOpen(false);
               setImageUrl("");
               setImageAlt("");
+              setActiveImageBlockId(null);
             },
           },
         ]}

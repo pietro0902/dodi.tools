@@ -1,3 +1,5 @@
+import type { EmailBlock } from "@/lib/email-blocks";
+
 export interface CampaignTemplate {
   id: string;
   name: string;
@@ -10,6 +12,7 @@ export interface CampaignTemplate {
   btnColor?: string;
   containerColor?: string;
   textColor?: string;
+  blocks?: EmailBlock[];
 }
 
 export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
