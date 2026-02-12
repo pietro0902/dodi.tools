@@ -26,8 +26,12 @@ import type { EmailBlock } from "@/lib/email-blocks";
 import { templateToBlocks } from "@/lib/email-blocks";
 import { BlockEditor } from "@/components/block-editor";
 import { ImagePickerModal } from "@/components/image-picker-modal";
+import { blocksToHtml } from "@/lib/email-blocks";
+import { buildPreviewHtml } from "@/lib/preview-wrapper";
 import type { ProductLayout } from "@/lib/product-html";
 import type { ShopifyProduct, ShopifyCollection } from "@/types/shopify";
+
+const STORE_NAME = process.env.NEXT_PUBLIC_STORE_NAME || "Dodi's";
 
 interface TemplateItem {
   id: string;
@@ -117,6 +121,40 @@ export default function TemplatesPage() {
   // --- Image picker ---
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [activeImageBlockId, setActiveImageBlockId] = useState<string | null>(null);
+
+  // --- Preview ---
+  const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">("desktop");
+  const [debouncedPreviewHtml, setDebouncedPreviewHtml] = useState("");
+  const previewDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const previewInputs = useMemo(
+    () => ({ editorBlocks, editorBgColor, editorBtnColor, editorContainerColor, editorTextColor, editorSubject, editorPreheader }),
+    [editorBlocks, editorBgColor, editorBtnColor, editorContainerColor, editorTextColor, editorSubject, editorPreheader]
+  );
+
+  useEffect(() => {
+    if (!editorOpen) return;
+    if (previewDebounceRef.current) clearTimeout(previewDebounceRef.current);
+    previewDebounceRef.current = setTimeout(() => {
+      const bodyHtml = blocksToHtml(previewInputs.editorBlocks, previewInputs.editorBtnColor);
+      const html = buildPreviewHtml({
+        subject: previewInputs.editorSubject,
+        preheader: previewInputs.editorPreheader,
+        bodyHtml,
+        ctaText: "",
+        ctaUrl: "",
+        storeName: STORE_NAME,
+        bgColor: previewInputs.editorBgColor,
+        btnColor: previewInputs.editorBtnColor,
+        containerColor: previewInputs.editorContainerColor,
+        textColor: previewInputs.editorTextColor,
+      });
+      setDebouncedPreviewHtml(html);
+    }, 300);
+    return () => {
+      if (previewDebounceRef.current) clearTimeout(previewDebounceRef.current);
+    };
+  }, [editorOpen, previewInputs]);
 
   const sortOptions = [
     { label: "Best seller", value: "BEST_SELLING" },
@@ -795,6 +833,51 @@ export default function TemplatesPage() {
                 </BlockStack>
               </Box>
             </InlineStack>
+
+            {/* Preview */}
+            <Text as="h3" variant="headingSm">
+              Anteprima
+            </Text>
+            <InlineStack gap="200">
+              <Button
+                size="slim"
+                variant={previewMode === "desktop" ? "primary" : "secondary"}
+                onClick={() => setPreviewMode("desktop")}
+              >
+                Desktop
+              </Button>
+              <Button
+                size="slim"
+                variant={previewMode === "mobile" ? "primary" : "secondary"}
+                onClick={() => setPreviewMode("mobile")}
+              >
+                Mobile
+              </Button>
+            </InlineStack>
+            {debouncedPreviewHtml ? (
+              <div
+                style={{
+                  border: "1px solid #e5e7eb",
+                  borderRadius: "8px",
+                  overflow: "hidden",
+                  maxWidth: previewMode === "mobile" ? "375px" : "600px",
+                  margin: "0 auto",
+                  height: "500px",
+                  transition: "max-width 0.3s ease",
+                }}
+              >
+                <iframe
+                  srcDoc={debouncedPreviewHtml}
+                  title="Anteprima template"
+                  style={{ width: "100%", height: "100%", border: "none" }}
+                  sandbox="allow-same-origin"
+                />
+              </div>
+            ) : (
+              <Banner tone="info">
+                <p>Aggiungi dei blocchi per vedere l&apos;anteprima.</p>
+              </Banner>
+            )}
           </BlockStack>
         </Modal.Section>
       </Modal>

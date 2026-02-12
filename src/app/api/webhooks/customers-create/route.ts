@@ -3,6 +3,7 @@ import { verifyShopifyWebhook } from "@/lib/verify-webhook";
 import { hasMarketingConsent } from "@/lib/consent";
 import { getResendClient } from "@/lib/resend";
 import { getAutomationSettings } from "@/lib/automation-settings";
+import { resolveTemplate } from "@/lib/resolve-template";
 import { logActivity } from "@/lib/activity-log";
 import CampaignEmail from "@/emails/campaign";
 import type { CustomerWebhookPayload } from "@/types/shopify";
@@ -41,20 +42,52 @@ export async function POST(request: NextRequest) {
     const resend = getResendClient();
     const storeName = process.env.STORE_NAME || "Store";
     const firstName = customer.first_name || "Cliente";
+    const replace = (s: string) => s.replace(/\{\{name\}\}/g, firstName);
 
-    const personalizedSubject = settings.welcome.subject.replace(/\{\{name\}\}/g, firstName);
-    const personalizedBody = settings.welcome.bodyHtml.replace(/\{\{name\}\}/g, firstName);
+    let subject: string;
+    let bodyHtml: string;
+    let previewText: string;
+    let bgColor: string | undefined;
+    let btnColor: string | undefined;
+    let containerColor: string | undefined;
+    let textColor: string | undefined;
+
+    const tpl = settings.welcome.templateId
+      ? await resolveTemplate(settings.welcome.templateId)
+      : null;
+
+    if (tpl) {
+      subject = replace(tpl.subject);
+      bodyHtml = replace(tpl.bodyHtml);
+      previewText = replace(tpl.preheader || tpl.subject);
+      bgColor = tpl.bgColor;
+      btnColor = tpl.btnColor;
+      containerColor = tpl.containerColor;
+      textColor = tpl.textColor;
+    } else {
+      subject = replace(settings.welcome.subject);
+      bodyHtml = replace(settings.welcome.bodyHtml);
+      previewText = replace(settings.welcome.preheader || settings.welcome.subject);
+      bgColor = settings.welcome.bgColor;
+      btnColor = settings.welcome.btnColor;
+      containerColor = settings.welcome.containerColor;
+      textColor = settings.welcome.textColor;
+    }
 
     await resend.emails.send({
       from: process.env.EMAIL_FROM!,
       to: customer.email,
-      subject: personalizedSubject,
+      subject,
       react: CampaignEmail({
         firstName,
-        subject: personalizedSubject,
-        previewText: personalizedSubject,
-        bodyHtml: personalizedBody,
+        subject,
+        previewText,
+        bodyHtml,
         storeName,
+        bgColor,
+        btnColor,
+        containerColor,
+        textColor,
       }),
     });
 

@@ -5,6 +5,12 @@ export interface AutomationSettings {
     enabled: boolean;
     subject: string;
     bodyHtml: string;
+    templateId?: string;
+    preheader?: string;
+    bgColor?: string;
+    btnColor?: string;
+    containerColor?: string;
+    textColor?: string;
   };
   abandonedCart: {
     enabled: boolean;
@@ -12,6 +18,12 @@ export interface AutomationSettings {
     bodyHtml: string;
     delayHours: number;
     maxAgeHours: number;
+    templateId?: string;
+    preheader?: string;
+    bgColor?: string;
+    btnColor?: string;
+    containerColor?: string;
+    textColor?: string;
   };
 }
 

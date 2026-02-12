@@ -4,6 +4,7 @@ import { hasMarketingConsent } from "@/lib/consent";
 import { getResendClient } from "@/lib/resend";
 import { sendInBatches } from "@/lib/rate-limit";
 import { getAutomationSettings } from "@/lib/automation-settings";
+import { resolveTemplate, type ResolvedTemplate } from "@/lib/resolve-template";
 import { buildCartItemsHtml } from "@/lib/cart-html";
 import { logActivity } from "@/lib/activity-log";
 import { verifyQStashRequest } from "@/lib/qstash";
@@ -23,6 +24,12 @@ export async function POST(request: Request) {
         sent: 0,
         message: "Abandoned cart automation disabled",
       });
+    }
+
+    // Load template if configured
+    let template: ResolvedTemplate | null = null;
+    if (settings.abandonedCart.templateId) {
+      template = await resolveTemplate(settings.abandonedCart.templateId);
     }
 
     const checkouts = await getAbandonedCheckouts();
@@ -56,15 +63,7 @@ export async function POST(request: Request) {
 
     const result = await sendInBatches(eligible, 100, 1000, async (checkout) => {
       const firstName = checkout.customer?.first_name || "Cliente";
-
-      const personalizedSubject = settings.abandonedCart.subject.replace(
-        /\{\{name\}\}/g,
-        firstName
-      );
-      const personalizedIntro = settings.abandonedCart.bodyHtml.replace(
-        /\{\{name\}\}/g,
-        firstName
-      );
+      const replace = (s: string) => s.replace(/\{\{name\}\}/g, firstName);
 
       const cartHtml = buildCartItemsHtml(
         checkout.line_items.map((item) => ({
@@ -78,18 +77,46 @@ export async function POST(request: Request) {
         checkout.abandoned_checkout_url
       );
 
-      const fullBodyHtml = personalizedIntro + cartHtml;
+      let subject: string;
+      let fullBodyHtml: string;
+      let previewText: string;
+      let bgColor: string | undefined;
+      let btnColor: string | undefined;
+      let containerColor: string | undefined;
+      let textColor: string | undefined;
+
+      if (template) {
+        subject = replace(template.subject);
+        fullBodyHtml = replace(template.bodyHtml) + cartHtml;
+        previewText = replace(template.preheader || template.subject);
+        bgColor = template.bgColor;
+        btnColor = template.btnColor;
+        containerColor = template.containerColor;
+        textColor = template.textColor;
+      } else {
+        subject = replace(settings.abandonedCart.subject);
+        fullBodyHtml = replace(settings.abandonedCart.bodyHtml) + cartHtml;
+        previewText = replace(settings.abandonedCart.preheader || settings.abandonedCart.subject);
+        bgColor = settings.abandonedCart.bgColor;
+        btnColor = settings.abandonedCart.btnColor;
+        containerColor = settings.abandonedCart.containerColor;
+        textColor = settings.abandonedCart.textColor;
+      }
 
       await resend.emails.send({
         from: process.env.EMAIL_FROM!,
         to: checkout.email,
-        subject: personalizedSubject,
+        subject,
         react: CampaignEmail({
           firstName,
-          subject: personalizedSubject,
-          previewText: personalizedSubject,
+          subject,
+          previewText,
           bodyHtml: fullBodyHtml,
           storeName,
+          bgColor,
+          btnColor,
+          containerColor,
+          textColor,
         }),
       });
     });
