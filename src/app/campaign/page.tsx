@@ -22,10 +22,7 @@ import {
   Badge,
 } from "@shopify/polaris";
 import { useRouter } from "next/navigation";
-import {
-  CAMPAIGN_TEMPLATES,
-  type CampaignTemplate,
-} from "@/lib/campaign-templates";
+import type { CampaignTemplate } from "@/lib/campaign-templates";
 import { buildPreviewHtml } from "@/lib/preview-wrapper";
 import type { ProductLayout } from "@/lib/product-html";
 import type { ShopifyProduct, ShopifyCollection } from "@/types/shopify";
@@ -35,6 +32,7 @@ import {
   templateToBlocks,
 } from "@/lib/email-blocks";
 import { BlockEditor } from "@/components/block-editor";
+import type { CustomTemplate } from "@/lib/custom-templates";
 
 interface CustomerListItem {
   id: number;
@@ -69,11 +67,6 @@ function useShopifyGlobal() {
 
 const STORE_NAME = process.env.NEXT_PUBLIC_STORE_NAME || "Dodi's";
 const STORE_LOGO_URL = process.env.NEXT_PUBLIC_STORE_LOGO_URL || "";
-
-const templateOptions = CAMPAIGN_TEMPLATES.map((t) => ({
-  label: t.name,
-  value: t.id,
-}));
 
 const sortOptions = [
   { label: "Best seller", value: "BEST_SELLING" },
@@ -122,6 +115,24 @@ function hasBlockContent(blocks: EmailBlock[]): boolean {
 export default function CampaignEditor() {
   const app = useShopifyGlobal();
   const router = useRouter();
+
+  // --- Templates from API ---
+  interface TemplateEntry {
+    id: string;
+    name: string;
+    description: string;
+    subject: string;
+    blocks?: EmailBlock[];
+    bodyHtml?: string;
+    ctaText?: string;
+    ctaUrl?: string;
+    bgColor?: string;
+    btnColor?: string;
+    containerColor?: string;
+    textColor?: string;
+  }
+  const [allTemplates, setAllTemplates] = useState<TemplateEntry[]>([]);
+  const [templatesLoaded, setTemplatesLoaded] = useState(false);
 
   // --- Template & form state ---
   const [selectedTemplateId, setSelectedTemplateId] = useState("blank");
@@ -187,6 +198,55 @@ export default function CampaignEditor() {
   const [productLayout, setProductLayout] = useState<ProductLayout>("grid");
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // --- Fetch templates from API ---
+  useEffect(() => {
+    if (!app || templatesLoaded) return;
+    (async () => {
+      try {
+        const token = await app.idToken();
+        const res = await fetch("/api/templates", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        const defaults: TemplateEntry[] = (data.defaults || []).map((d: CampaignTemplate) => ({
+          id: d.id,
+          name: d.name,
+          description: d.description,
+          subject: d.subject,
+          blocks: d.blocks,
+          bodyHtml: d.bodyHtml,
+          ctaText: d.ctaText,
+          ctaUrl: d.ctaUrl,
+          bgColor: d.bgColor,
+          btnColor: d.btnColor,
+          containerColor: d.containerColor,
+          textColor: d.textColor,
+        }));
+        const customs: TemplateEntry[] = (data.custom || []).map((c: CustomTemplate) => ({
+          id: c.id,
+          name: c.name,
+          description: c.description,
+          subject: c.subject,
+          blocks: c.blocks,
+          bgColor: c.bgColor,
+          btnColor: c.btnColor,
+          containerColor: c.containerColor,
+          textColor: c.textColor,
+        }));
+        setAllTemplates([...defaults, ...customs]);
+        setTemplatesLoaded(true);
+      } catch (err) {
+        console.error("Failed to fetch templates:", err);
+      }
+    })();
+  }, [app, templatesLoaded]);
+
+  const templateOptions = useMemo(
+    () => allTemplates.map((t) => ({ label: t.name, value: t.id })),
+    [allTemplates]
+  );
+
   // --- Assembled HTML from blocks (for preview & send) ---
   const assembledHtml = useMemo(
     () => blocksToHtml(blocks, btnColor),
@@ -236,13 +296,23 @@ export default function CampaignEditor() {
 
   // --- Template handlers ---
   const applyTemplate = useCallback((id: string) => {
-    const tpl = CAMPAIGN_TEMPLATES.find((t) => t.id === id);
+    const tpl = allTemplates.find((t) => t.id === id);
     if (!tpl) return;
     setSelectedTemplateId(id);
     setSubject(tpl.subject);
-    setBlocks(tpl.blocks ? tpl.blocks.map((b) => ({ ...b })) : templateToBlocks(tpl));
+    if (tpl.blocks && tpl.blocks.length > 0) {
+      setBlocks(tpl.blocks.map((b) => ({ ...b })));
+    } else if (tpl.bodyHtml !== undefined) {
+      setBlocks(templateToBlocks({ bodyHtml: tpl.bodyHtml || "", ctaText: tpl.ctaText || "", ctaUrl: tpl.ctaUrl || "" }));
+    } else {
+      setBlocks([]);
+    }
+    if (tpl.bgColor) setBgColor(tpl.bgColor);
+    if (tpl.btnColor) setBtnColor(tpl.btnColor);
+    if (tpl.containerColor) setContainerColor(tpl.containerColor);
+    if (tpl.textColor) setTextColor(tpl.textColor);
     setBlocksDirty(false);
-  }, []);
+  }, [allTemplates]);
 
   const handleTemplateChange = useCallback(
     (value: string) => {
@@ -684,7 +754,7 @@ export default function CampaignEditor() {
   );
 
   const selectedDescription =
-    CAMPAIGN_TEMPLATES.find((t) => t.id === selectedTemplateId)?.description ||
+    allTemplates.find((t) => t.id === selectedTemplateId)?.description ||
     "";
 
   return (

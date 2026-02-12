@@ -324,6 +324,24 @@ export default function Dashboard() {
           </Card>
         </Layout.Section>
 
+        {/* Template Email */}
+        <Layout.Section>
+          <Card>
+            <BlockStack gap="400">
+              <Text as="h2" variant="headingMd">
+                Template Email
+              </Text>
+              <Text as="p" variant="bodyMd">
+                Gestisci i template riutilizzabili per le tue campagne.
+                Crea, modifica e duplica template personalizzati.
+              </Text>
+              <Button onClick={() => router.push("/templates")}>
+                Gestisci template
+              </Button>
+            </BlockStack>
+          </Card>
+        </Layout.Section>
+
         {/* Scheduled Campaigns */}
         <Layout.Section>
           <Card>
