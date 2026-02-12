@@ -34,6 +34,7 @@ interface TemplateItem {
   name: string;
   description: string;
   subject: string;
+  preheader: string;
   blocks: EmailBlock[];
   bgColor: string;
   btnColor: string;
@@ -87,6 +88,7 @@ export default function TemplatesPage() {
   const [editorName, setEditorName] = useState("");
   const [editorDescription, setEditorDescription] = useState("");
   const [editorSubject, setEditorSubject] = useState("");
+  const [editorPreheader, setEditorPreheader] = useState("");
   const [editorBlocks, setEditorBlocks] = useState<EmailBlock[]>([]);
   const [editorBgColor, setEditorBgColor] = useState("#f9fafb");
   const [editorBtnColor, setEditorBtnColor] = useState("#111827");
@@ -161,6 +163,7 @@ export default function TemplatesPage() {
       name: d.name,
       description: d.description,
       subject: d.subject,
+      preheader: "",
       blocks: d.blocks ? d.blocks.map((b) => ({ ...b })) : templateToBlocks(d),
       bgColor: d.bgColor || "#f9fafb",
       btnColor: d.btnColor || "#111827",
@@ -173,6 +176,7 @@ export default function TemplatesPage() {
       name: c.name,
       description: c.description,
       subject: c.subject,
+      preheader: c.preheader || "",
       blocks: c.blocks || [],
       bgColor: c.bgColor || "#f9fafb",
       btnColor: c.btnColor || "#111827",
@@ -189,6 +193,7 @@ export default function TemplatesPage() {
     setEditorName("");
     setEditorDescription("");
     setEditorSubject("");
+    setEditorPreheader("");
     setEditorBlocks([]);
     setEditorBgColor("#f9fafb");
     setEditorBtnColor("#111827");
@@ -206,6 +211,7 @@ export default function TemplatesPage() {
       setEditorName(tpl.name);
       setEditorDescription(tpl.description);
       setEditorSubject(tpl.subject);
+      setEditorPreheader(tpl.preheader);
       setEditorBlocks(tpl.blocks.map((b) => ({ ...b })));
       setEditorBgColor(tpl.bgColor);
       setEditorBtnColor(tpl.btnColor);
@@ -225,6 +231,7 @@ export default function TemplatesPage() {
       setEditorName(`${tpl.name} (copia)`);
       setEditorDescription(tpl.description);
       setEditorSubject(tpl.subject);
+      setEditorPreheader(tpl.preheader);
       setEditorBlocks(tpl.blocks.map((b) => ({ ...b })));
       setEditorBgColor(tpl.bgColor);
       setEditorBtnColor(tpl.btnColor);
@@ -250,6 +257,7 @@ export default function TemplatesPage() {
         name: editorName,
         description: editorDescription,
         subject: editorSubject,
+        preheader: editorPreheader,
         blocks: editorBlocks,
         bgColor: editorBgColor,
         btnColor: editorBtnColor,
@@ -283,7 +291,7 @@ export default function TemplatesPage() {
     } finally {
       setSaving(false);
     }
-  }, [app, editingId, editorName, editorDescription, editorSubject, editorBlocks, editorBgColor, editorBtnColor, editorContainerColor, editorTextColor, fetchTemplates]);
+  }, [app, editingId, editorName, editorDescription, editorSubject, editorPreheader, editorBlocks, editorBgColor, editorBtnColor, editorContainerColor, editorTextColor, fetchTemplates]);
 
   // --- Delete custom template ---
   const handleDelete = useCallback(async () => {
@@ -593,6 +601,14 @@ export default function TemplatesPage() {
               onChange={setEditorSubject}
               placeholder="Es: Offerta speciale per te!"
               autoComplete="off"
+            />
+            <TextField
+              label="Preheader"
+              value={editorPreheader}
+              onChange={setEditorPreheader}
+              placeholder="Testo di anteprima visibile nell'inbox"
+              autoComplete="off"
+              helpText="Appare dopo l'oggetto nella lista email del destinatario."
             />
 
             <Text as="h3" variant="headingSm">

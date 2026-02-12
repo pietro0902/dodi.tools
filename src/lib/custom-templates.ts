@@ -6,6 +6,7 @@ export interface CustomTemplate {
   name: string;
   description: string;
   subject: string;
+  preheader?: string;
   blocks: EmailBlock[];
   bgColor: string;
   btnColor: string;

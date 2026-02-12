@@ -122,6 +122,7 @@ export default function CampaignEditor() {
     name: string;
     description: string;
     subject: string;
+    preheader?: string;
     blocks?: EmailBlock[];
     bodyHtml?: string;
     ctaText?: string;
@@ -179,6 +180,12 @@ export default function CampaignEditor() {
   // --- Image picker modal ---
   const [imageModalOpen, setImageModalOpen] = useState(false);
 
+  // --- Save as template modal ---
+  const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
+  const [templateName, setTemplateName] = useState("");
+  const [templateDescription, setTemplateDescription] = useState("");
+  const [savingTemplate, setSavingTemplate] = useState(false);
+
   // --- Product picker ---
   const [pickerOpen, setPickerOpen] = useState(false);
   const [products, setProducts] = useState<ShopifyProduct[]>([]);
@@ -222,6 +229,7 @@ export default function CampaignEditor() {
           name: c.name,
           description: c.description,
           subject: c.subject,
+          preheader: c.preheader,
           blocks: c.blocks,
           bgColor: c.bgColor,
           btnColor: c.btnColor,
@@ -293,7 +301,7 @@ export default function CampaignEditor() {
     if (!tpl) return;
     setSelectedTemplateId(id);
     setSubject(tpl.subject);
-    setPreheader("");
+    setPreheader(tpl.preheader || "");
     if (tpl.blocks && tpl.blocks.length > 0) {
       setBlocks(tpl.blocks.map((b) => ({ ...b })));
     } else if (tpl.bodyHtml !== undefined) {
@@ -646,6 +654,57 @@ export default function CampaignEditor() {
     if (!app) throw new Error("App not ready");
     return app.idToken();
   }, [app]);
+
+  // --- Save current email as template ---
+  const handleOpenSaveTemplate = useCallback(() => {
+    setTemplateName("");
+    setTemplateDescription("");
+    setSaveTemplateOpen(true);
+  }, []);
+
+  const handleSaveAsTemplate = useCallback(async () => {
+    if (!app) return;
+    if (!templateName.trim()) {
+      app.toast.show("Inserisci un nome per il template", { isError: true });
+      return;
+    }
+    setSavingTemplate(true);
+    try {
+      const token = await app.idToken();
+      const res = await fetch("/api/templates", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          name: templateName,
+          description: templateDescription,
+          subject,
+          preheader,
+          blocks,
+          bgColor,
+          btnColor,
+          containerColor,
+          textColor,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || `HTTP ${res.status}`);
+      }
+      app.toast.show("Template salvato");
+      setSaveTemplateOpen(false);
+      setTemplatesLoaded(false); // refresh template list
+    } catch (err) {
+      app.toast.show(
+        err instanceof Error ? err.message : "Errore nel salvataggio",
+        { isError: true }
+      );
+    } finally {
+      setSavingTemplate(false);
+    }
+  }, [app, templateName, templateDescription, subject, preheader, blocks, bgColor, btnColor, containerColor, textColor]);
 
   // --- Search with debounce ---
   const handleSearchChange = useCallback(
@@ -1181,14 +1240,19 @@ export default function CampaignEditor() {
                 </Box>
               </InlineStack>
 
-              <Box>
+              <InlineStack gap="300">
                 <Button
                   variant="primary"
                   onClick={handleGoToStep2}
                 >
                   Continua &rarr;
                 </Button>
-              </Box>
+                <Button
+                  onClick={handleOpenSaveTemplate}
+                >
+                  Salva come template
+                </Button>
+              </InlineStack>
             </BlockStack>
           </Card>
         </Layout.Section>
@@ -1467,6 +1531,45 @@ export default function CampaignEditor() {
         onConfirm={handleImagePickerConfirm}
         getToken={getAppToken}
       />
+
+      {/* Save as template modal */}
+      <Modal
+        open={saveTemplateOpen}
+        onClose={() => setSaveTemplateOpen(false)}
+        title="Salva come template"
+        primaryAction={{
+          content: "Salva",
+          onAction: handleSaveAsTemplate,
+          loading: savingTemplate,
+        }}
+        secondaryActions={[
+          { content: "Annulla", onAction: () => setSaveTemplateOpen(false) },
+        ]}
+      >
+        <Modal.Section>
+          <BlockStack gap="400">
+            <TextField
+              label="Nome template"
+              value={templateName}
+              onChange={setTemplateName}
+              placeholder="Es: Promo Black Friday"
+              autoComplete="off"
+            />
+            <TextField
+              label="Descrizione"
+              value={templateDescription}
+              onChange={setTemplateDescription}
+              placeholder="Breve descrizione (opzionale)"
+              autoComplete="off"
+            />
+            <Banner tone="info">
+              <p>
+                Verranno salvati oggetto, preheader, blocchi e colori attuali come nuovo template riutilizzabile.
+              </p>
+            </Banner>
+          </BlockStack>
+        </Modal.Section>
+      </Modal>
     </Page>
   );
 }
