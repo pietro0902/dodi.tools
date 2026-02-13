@@ -4,7 +4,7 @@ import { hasMarketingConsent } from "@/lib/consent";
 import { getResendClient } from "@/lib/resend";
 import { sendInBatches } from "@/lib/rate-limit";
 import { getAutomationSettings } from "@/lib/automation-settings";
-import { resolveTemplate, type ResolvedTemplate } from "@/lib/resolve-template";
+import { blocksToHtml } from "@/lib/email-blocks";
 import { buildCartItemsHtml } from "@/lib/cart-html";
 import { logActivity } from "@/lib/activity-log";
 import { verifyQStashRequest } from "@/lib/qstash";
@@ -26,16 +26,12 @@ export async function POST(request: Request) {
       });
     }
 
-    // Load template if configured
-    let template: ResolvedTemplate | null = null;
-    if (settings.abandonedCart.templateId) {
-      template = await resolveTemplate(settings.abandonedCart.templateId);
-    }
+    const ac = settings.abandonedCart;
 
     const checkouts = await getAbandonedCheckouts();
     const now = Date.now();
-    const delayMs = settings.abandonedCart.delayHours * 60 * 60 * 1000;
-    const maxAgeMs = settings.abandonedCart.maxAgeHours * 60 * 60 * 1000;
+    const delayMs = ac.delayHours * 60 * 60 * 1000;
+    const maxAgeMs = ac.maxAgeHours * 60 * 60 * 1000;
 
     // Filter: consent, time window, deduplicate by email
     const seenEmails = new Set<string>();
@@ -77,31 +73,12 @@ export async function POST(request: Request) {
         checkout.abandoned_checkout_url
       );
 
-      let subject: string;
-      let fullBodyHtml: string;
-      let previewText: string;
-      let bgColor: string | undefined;
-      let btnColor: string | undefined;
-      let containerColor: string | undefined;
-      let textColor: string | undefined;
-
-      if (template) {
-        subject = replace(template.subject);
-        fullBodyHtml = replace(template.bodyHtml) + cartHtml;
-        previewText = replace(template.preheader || template.subject);
-        bgColor = template.bgColor;
-        btnColor = template.btnColor;
-        containerColor = template.containerColor;
-        textColor = template.textColor;
-      } else {
-        subject = replace(settings.abandonedCart.subject);
-        fullBodyHtml = replace(settings.abandonedCart.bodyHtml) + cartHtml;
-        previewText = replace(settings.abandonedCart.preheader || settings.abandonedCart.subject);
-        bgColor = settings.abandonedCart.bgColor;
-        btnColor = settings.abandonedCart.btnColor;
-        containerColor = settings.abandonedCart.containerColor;
-        textColor = settings.abandonedCart.textColor;
-      }
+      const subject = replace(ac.subject);
+      const baseHtml = ac.blocks && ac.blocks.length > 0
+        ? replace(blocksToHtml(ac.blocks, ac.btnColor || "#111827"))
+        : replace(ac.bodyHtml);
+      const fullBodyHtml = baseHtml + cartHtml;
+      const previewText = replace(ac.preheader || ac.subject);
 
       await resend.emails.send({
         from: process.env.EMAIL_FROM!,
@@ -113,10 +90,10 @@ export async function POST(request: Request) {
           previewText,
           bodyHtml: fullBodyHtml,
           storeName,
-          bgColor,
-          btnColor,
-          containerColor,
-          textColor,
+          bgColor: ac.bgColor,
+          btnColor: ac.btnColor,
+          containerColor: ac.containerColor,
+          textColor: ac.textColor,
         }),
       });
     });

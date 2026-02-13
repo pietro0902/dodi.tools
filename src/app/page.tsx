@@ -420,22 +420,42 @@ export default function Dashboard() {
                 </InlineStack>
               ) : (
                 <BlockStack gap="300">
-                  <InlineStack align="space-between">
-                    <Text as="span" variant="bodyMd">
-                      Email di benvenuto
-                    </Text>
-                    <Badge tone={automationStatus?.welcome.enabled ? "success" : "critical"}>
-                      {automationStatus?.welcome.enabled ? "Attiva" : "Disattiva"}
-                    </Badge>
-                  </InlineStack>
-                  <InlineStack align="space-between">
-                    <Text as="span" variant="bodyMd">
-                      Carrello abbandonato
-                    </Text>
-                    <Badge tone={automationStatus?.abandonedCart.enabled ? "success" : "critical"}>
-                      {automationStatus?.abandonedCart.enabled ? "Attiva" : "Disattiva"}
-                    </Badge>
-                  </InlineStack>
+                  <div
+                    style={{
+                      padding: "12px",
+                      border: "1px solid #e5e7eb",
+                      borderRadius: "8px",
+                      cursor: "pointer",
+                    }}
+                    onClick={() => router.push("/automations/welcome")}
+                  >
+                    <InlineStack align="space-between" blockAlign="center">
+                      <Text as="span" variant="bodyMd">
+                        Email di benvenuto
+                      </Text>
+                      <Badge tone={automationStatus?.welcome.enabled ? "success" : "critical"}>
+                        {automationStatus?.welcome.enabled ? "Attiva" : "Disattiva"}
+                      </Badge>
+                    </InlineStack>
+                  </div>
+                  <div
+                    style={{
+                      padding: "12px",
+                      border: "1px solid #e5e7eb",
+                      borderRadius: "8px",
+                      cursor: "pointer",
+                    }}
+                    onClick={() => router.push("/automations/abandoned-cart")}
+                  >
+                    <InlineStack align="space-between" blockAlign="center">
+                      <Text as="span" variant="bodyMd">
+                        Carrello abbandonato
+                      </Text>
+                      <Badge tone={automationStatus?.abandonedCart.enabled ? "success" : "critical"}>
+                        {automationStatus?.abandonedCart.enabled ? "Attiva" : "Disattiva"}
+                      </Badge>
+                    </InlineStack>
+                  </div>
                   <Button onClick={() => router.push("/automations")}>
                     Gestisci automazioni
                   </Button>

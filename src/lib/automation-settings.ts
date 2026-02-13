@@ -1,16 +1,17 @@
 import { graphqlQuery } from "@/lib/shopify";
+import type { EmailBlock } from "@/lib/email-blocks";
 
 export interface AutomationSettings {
   welcome: {
     enabled: boolean;
     subject: string;
     bodyHtml: string;
-    templateId?: string;
-    preheader?: string;
-    bgColor?: string;
-    btnColor?: string;
-    containerColor?: string;
-    textColor?: string;
+    preheader: string;
+    blocks: EmailBlock[];
+    bgColor: string;
+    btnColor: string;
+    containerColor: string;
+    textColor: string;
   };
   abandonedCart: {
     enabled: boolean;
@@ -18,30 +19,45 @@ export interface AutomationSettings {
     bodyHtml: string;
     delayHours: number;
     maxAgeHours: number;
-    templateId?: string;
-    preheader?: string;
-    bgColor?: string;
-    btnColor?: string;
-    containerColor?: string;
-    textColor?: string;
+    preheader: string;
+    blocks: EmailBlock[];
+    bgColor: string;
+    btnColor: string;
+    containerColor: string;
+    textColor: string;
   };
 }
 
 const STORE_NAME = process.env.STORE_NAME || "Dodi's";
 
 export function getDefaultSettings(): AutomationSettings {
+  const welcomeBody = `<p>Ciao {{name}},</p>\n<p>Grazie per esserti iscritto a ${STORE_NAME}! Siamo felici di averti con noi.</p>\n<p>Scopri le nostre ultime novit\u00e0 e approfitta delle offerte riservate ai nuovi iscritti.</p>`;
+  const cartBody = `<p>Ciao {{name}},</p>\n<p>Hai lasciato degli articoli nel carrello. Non lasciarli scappare!</p>`;
+
   return {
     welcome: {
       enabled: true,
       subject: `Benvenuto in ${STORE_NAME}!`,
-      bodyHtml: `<p>Ciao {{name}},</p>\n<p>Grazie per esserti iscritto a ${STORE_NAME}! Siamo felici di averti con noi.</p>\n<p>Scopri le nostre ultime novit\u00e0 e approfitta delle offerte riservate ai nuovi iscritti.</p>`,
+      bodyHtml: welcomeBody,
+      preheader: "",
+      blocks: [],
+      bgColor: "#f9fafb",
+      btnColor: "#111827",
+      containerColor: "#ffffff",
+      textColor: "#374151",
     },
     abandonedCart: {
       enabled: true,
       subject: `Hai dimenticato qualcosa in ${STORE_NAME}!`,
-      bodyHtml: `<p>Ciao {{name}},</p>\n<p>Hai lasciato degli articoli nel carrello. Non lasciarli scappare!</p>`,
+      bodyHtml: cartBody,
       delayHours: 4,
       maxAgeHours: 48,
+      preheader: "",
+      blocks: [],
+      bgColor: "#f9fafb",
+      btnColor: "#111827",
+      containerColor: "#ffffff",
+      textColor: "#374151",
     },
   };
 }

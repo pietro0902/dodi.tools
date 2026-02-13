@@ -3,7 +3,7 @@ import { verifyShopifyWebhook } from "@/lib/verify-webhook";
 import { hasMarketingConsent } from "@/lib/consent";
 import { getResendClient } from "@/lib/resend";
 import { getAutomationSettings } from "@/lib/automation-settings";
-import { resolveTemplate } from "@/lib/resolve-template";
+import { blocksToHtml } from "@/lib/email-blocks";
 import { logActivity } from "@/lib/activity-log";
 import CampaignEmail from "@/emails/campaign";
 import type { CustomerWebhookPayload } from "@/types/shopify";
@@ -44,35 +44,12 @@ export async function POST(request: NextRequest) {
     const firstName = customer.first_name || "Cliente";
     const replace = (s: string) => s.replace(/\{\{name\}\}/g, firstName);
 
-    let subject: string;
-    let bodyHtml: string;
-    let previewText: string;
-    let bgColor: string | undefined;
-    let btnColor: string | undefined;
-    let containerColor: string | undefined;
-    let textColor: string | undefined;
-
-    const tpl = settings.welcome.templateId
-      ? await resolveTemplate(settings.welcome.templateId)
-      : null;
-
-    if (tpl) {
-      subject = replace(tpl.subject);
-      bodyHtml = replace(tpl.bodyHtml);
-      previewText = replace(tpl.preheader || tpl.subject);
-      bgColor = tpl.bgColor;
-      btnColor = tpl.btnColor;
-      containerColor = tpl.containerColor;
-      textColor = tpl.textColor;
-    } else {
-      subject = replace(settings.welcome.subject);
-      bodyHtml = replace(settings.welcome.bodyHtml);
-      previewText = replace(settings.welcome.preheader || settings.welcome.subject);
-      bgColor = settings.welcome.bgColor;
-      btnColor = settings.welcome.btnColor;
-      containerColor = settings.welcome.containerColor;
-      textColor = settings.welcome.textColor;
-    }
+    const w = settings.welcome;
+    const subject = replace(w.subject);
+    const bodyHtml = w.blocks && w.blocks.length > 0
+      ? replace(blocksToHtml(w.blocks, w.btnColor || "#111827"))
+      : replace(w.bodyHtml);
+    const previewText = replace(w.preheader || w.subject);
 
     await resend.emails.send({
       from: process.env.EMAIL_FROM!,
@@ -84,10 +61,10 @@ export async function POST(request: NextRequest) {
         previewText,
         bodyHtml,
         storeName,
-        bgColor,
-        btnColor,
-        containerColor,
-        textColor,
+        bgColor: w.bgColor,
+        btnColor: w.btnColor,
+        containerColor: w.containerColor,
+        textColor: w.textColor,
       }),
     });
 
