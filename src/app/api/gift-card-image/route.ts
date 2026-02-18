@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createCanvas, loadImage } from "@napi-rs/canvas";
 import path from "path";
 import fs from "fs";
 
@@ -9,27 +8,33 @@ function formatAmount(raw: string): string {
   return Number.isInteger(num) ? String(num) : num.toFixed(2).replace(".", ",");
 }
 
+function escapeXml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const name = (searchParams.get("name") || "Cliente").toUpperCase();
-  const amount = formatAmount(searchParams.get("amount") || "0");
+  const name = escapeXml((searchParams.get("name") || "Cliente").toUpperCase());
+  const amount = escapeXml(formatAmount(searchParams.get("amount") || "0"));
 
   const templatePath = path.join(process.cwd(), "public", "gift-card-template.png");
   if (!fs.existsSync(templatePath)) {
     return NextResponse.json({ error: "Template not found" }, { status: 404 });
   }
 
-  const template = await loadImage(templatePath);
-  const W = template.width;
-  const H = template.height;
+  const templateBase64 = fs.readFileSync(templatePath).toString("base64");
+  const dataUrl = `data:image/png;base64,${templateBase64}`;
 
-  const canvas = createCanvas(W, H);
-  const ctx = canvas.getContext("2d");
+  // Use sharp (Next.js dep) only for dimensions — no bundling issues
+  const sharp = (await import("sharp")).default;
+  const meta = await sharp(templatePath).metadata();
+  const W = meta.width ?? 800;
+  const H = meta.height ?? 1040;
 
-  // Draw template background
-  ctx.drawImage(template, 0, 0, W, H);
-
-  // Scale text positions from reference 800x1040
   const sx = W / 800;
   const sy = H / 1040;
   const NAME_X = Math.round(52 * sx);
@@ -38,16 +43,16 @@ export async function GET(request: NextRequest) {
   const AMOUNT_Y = Math.round(665 * sy);
   const FONT_SIZE = Math.round(54 * sx);
 
-  ctx.fillStyle = "#1a1a1a";
-  ctx.font = `900 ${FONT_SIZE}px Arial, sans-serif`;
-  ctx.fillText(`A: ${name}`, NAME_X, NAME_Y);
-  ctx.fillText(`VALORE: \u20AC${amount}`, AMOUNT_X, AMOUNT_Y);
+  const svg = `<?xml version="1.0" encoding="UTF-8"?>
+<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <image href="${dataUrl}" x="0" y="0" width="${W}" height="${H}"/>
+  <text x="${NAME_X}" y="${NAME_Y}" font-family="Arial, Helvetica, sans-serif" font-size="${FONT_SIZE}" font-weight="bold" fill="#1a1a1a">A: ${name}</text>
+  <text x="${AMOUNT_X}" y="${AMOUNT_Y}" font-family="Arial, Helvetica, sans-serif" font-size="${FONT_SIZE}" font-weight="bold" fill="#1a1a1a">VALORE: &#8364;${amount}</text>
+</svg>`;
 
-  const buffer = canvas.toBuffer("image/png");
-
-  return new NextResponse(new Uint8Array(buffer), {
+  return new NextResponse(svg, {
     headers: {
-      "Content-Type": "image/png",
+      "Content-Type": "image/svg+xml",
       "Cache-Control": "no-store",
     },
   });
