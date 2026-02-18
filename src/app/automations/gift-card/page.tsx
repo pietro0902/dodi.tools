@@ -266,7 +266,7 @@ export default function GiftCardAutomationPage() {
       if (previewInputs.giftCardImageUrl) {
         bodyHtml = bodyHtml.replace(/__GIFT_CARD_IMAGE__/g, previewInputs.giftCardImageUrl);
       } else {
-        bodyHtml = bodyHtml.replace(/<div[^>]*><img src="__GIFT_CARD_IMAGE__"[^>]*\/>.*?<\/div>/gs, "");
+        bodyHtml = bodyHtml.replace(/<div[^>]*><img src="__GIFT_CARD_IMAGE__"[^>]*\/>[\s\S]*?<\/div>/g, "");
       }
       if (previewInputs.giftCardProductUrl) {
         bodyHtml = bodyHtml.replace(/__GIFT_CARD_URL__/g, previewInputs.giftCardProductUrl);

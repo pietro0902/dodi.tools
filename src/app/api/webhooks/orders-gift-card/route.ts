@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
       if (imageUrl) {
         bodyHtml = bodyHtml.replace(/__GIFT_CARD_IMAGE__/g, imageUrl);
       } else {
-        bodyHtml = bodyHtml.replace(/<div[^>]*><img src="__GIFT_CARD_IMAGE__"[^>]*\/>.*?<\/div>/gs, "");
+        bodyHtml = bodyHtml.replace(/<div[^>]*><img src="__GIFT_CARD_IMAGE__"[^>]*\/>[\s\S]*?<\/div>/g, "");
       }
       bodyHtml = bodyHtml.replace(/__GIFT_CARD_URL__/g, productUrl ?? "#");
     }
