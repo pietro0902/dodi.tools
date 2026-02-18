@@ -22,6 +22,7 @@ interface BlockEditorProps {
   onChange: (blocks: EmailBlock[]) => void;
   onOpenProductPicker: (blockId: string) => void;
   onOpenImageUploader: (blockId: string) => void;
+  giftCardImageUrl?: string | null;
 }
 
 const BLOCK_LABELS: Record<EmailBlockType, string> = {
@@ -31,6 +32,7 @@ const BLOCK_LABELS: Record<EmailBlockType, string> = {
   products: "Prodotti",
   logo: "Logo",
   divider: "Separatore",
+  gift_card_image: "Immagine Gift Card",
 };
 
 export function BlockEditor({
@@ -38,6 +40,7 @@ export function BlockEditor({
   onChange,
   onOpenProductPicker,
   onOpenImageUploader,
+  giftCardImageUrl,
 }: BlockEditorProps) {
   function updateBlock(id: string, patch: Partial<EmailBlock>) {
     onChange(
@@ -408,6 +411,24 @@ export function BlockEditor({
                 }}
               />
             )}
+
+            {block.type === "gift_card_image" && (
+              <BlockStack gap="200">
+                <Text as="p" variant="bodySm" tone="subdued">
+                  L&apos;immagine del prodotto gift card acquistato viene inserita automaticamente.
+                </Text>
+                {giftCardImageUrl && (
+                  <div style={{ textAlign: "center", padding: "8px", border: "1px solid #e5e7eb", borderRadius: "6px" }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={giftCardImageUrl}
+                      alt="Gift Card"
+                      style={{ maxWidth: "100%", maxHeight: "150px", borderRadius: "6px" }}
+                    />
+                  </div>
+                )}
+              </BlockStack>
+            )}
           </BlockStack>
         </div>
       ))}
@@ -435,6 +456,11 @@ export function BlockEditor({
         <Button size="slim" onClick={() => addBlock("divider")}>
           + Separatore
         </Button>
+        {giftCardImageUrl != null && (
+          <Button size="slim" onClick={() => addBlock("gift_card_image")}>
+            + Gift Card
+          </Button>
+        )}
       </InlineStack>
     </BlockStack>
   );

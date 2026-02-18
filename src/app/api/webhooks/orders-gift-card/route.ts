@@ -65,12 +65,16 @@ export async function POST(request: NextRequest) {
         : replace(gc.bodyHtml);
     const previewText = replace(gc.preheader || gc.subject);
 
-    // Prepend the gift card product image if available
-    const giftCardItem = order.line_items.find((item) => item.gift_card === true);
-    if (giftCardItem?.product_id) {
-      const imageUrl = await getProductImageUrl(giftCardItem.product_id).catch(() => null);
+    // Replace gift card image placeholder with the real purchased product's image
+    if (bodyHtml.includes("__GIFT_CARD_IMAGE__")) {
+      const giftCardItem = order.line_items.find((item) => item.gift_card === true);
+      const imageUrl = giftCardItem?.product_id
+        ? await getProductImageUrl(giftCardItem.product_id).catch(() => null)
+        : null;
       if (imageUrl) {
-        bodyHtml = `<div style="text-align:center;margin-bottom:24px;"><img src="${imageUrl}" alt="${giftCardItem.title}" style="max-width:360px;width:100%;border-radius:8px;" /></div>` + bodyHtml;
+        bodyHtml = bodyHtml.replace(/__GIFT_CARD_IMAGE__/g, imageUrl);
+      } else {
+        bodyHtml = bodyHtml.replace(/<div[^>]*><img src="__GIFT_CARD_IMAGE__"[^>]*><\/div>/g, "");
       }
     }
 

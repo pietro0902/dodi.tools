@@ -260,8 +260,11 @@ export default function GiftCardAutomationPage() {
     previewDebounceRef.current = setTimeout(() => {
       let bodyHtml = blocksToHtml(previewInputs.blocks, previewInputs.btnColor);
       bodyHtml = bodyHtml || previewInputs.subject;
+      // Replace gift card image placeholder with the real product image for preview
       if (previewInputs.giftCardImageUrl) {
-        bodyHtml = `<div style="text-align:center;margin-bottom:24px;"><img src="${previewInputs.giftCardImageUrl}" alt="Gift Card" style="max-width:360px;width:100%;border-radius:8px;" /></div>` + bodyHtml;
+        bodyHtml = bodyHtml.replace(/__GIFT_CARD_IMAGE__/g, previewInputs.giftCardImageUrl);
+      } else {
+        bodyHtml = bodyHtml.replace(/<div[^>]*><img src="__GIFT_CARD_IMAGE__"[^>]*><\/div>/g, "");
       }
       const html = buildPreviewHtml({
         subject: previewInputs.subject,
@@ -583,6 +586,7 @@ export default function GiftCardAutomationPage() {
                 onChange={setBlocks}
                 onOpenProductPicker={handleOpenProductPicker}
                 onOpenImageUploader={handleOpenImageUploader}
+                giftCardImageUrl={giftCardImageUrl}
               />
             </BlockStack>
           </Card>

@@ -47,13 +47,19 @@ export interface DividerBlock {
   type: "divider";
 }
 
+export interface GiftCardImageBlock {
+  id: string;
+  type: "gift_card_image";
+}
+
 export type EmailBlock =
   | TextBlock
   | ImageBlock
   | ButtonBlock
   | ProductsBlock
   | LogoBlock
-  | DividerBlock;
+  | DividerBlock
+  | GiftCardImageBlock;
 
 export type EmailBlockType = EmailBlock["type"];
 
@@ -78,6 +84,8 @@ export function createDefaultBlock(type: EmailBlockType): EmailBlock {
       return { id, type: "logo", src: "", alt: "", width: 120 };
     case "divider":
       return { id, type: "divider" };
+    case "gift_card_image":
+      return { id, type: "gift_card_image" };
   }
 }
 
@@ -115,6 +123,9 @@ export function blocksToHtml(blocks: EmailBlock[], btnColor: string): string {
 
         case "divider":
           return `<hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0" />`;
+
+        case "gift_card_image":
+          return `<div style="text-align:center;margin:0 0 24px 0"><img src="__GIFT_CARD_IMAGE__" alt="Gift Card" style="max-width:360px;width:100%;border-radius:8px;display:block;margin:0 auto" /></div>`;
       }
     })
     .filter(Boolean)
