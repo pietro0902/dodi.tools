@@ -169,8 +169,12 @@ export default function GiftCardAutomationPage() {
   const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">("desktop");
   const [debouncedPreviewHtml, setDebouncedPreviewHtml] = useState("");
   const previewDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [giftCardImageUrl] = useState<string>("/api/gift-card-image?name=Maria&amount=50");
+  const [giftCardImageUrl, setGiftCardImageUrl] = useState<string | null>(null);
   const [giftCardProductUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    setGiftCardImageUrl(`${window.location.origin}/api/gift-card-image?name=Maria&amount=50`);
+  }, []);
 
   const fetchData = useCallback(async () => {
     if (!app) return;
