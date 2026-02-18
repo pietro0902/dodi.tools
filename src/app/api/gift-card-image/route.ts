@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createCanvas, loadImage } from "@napi-rs/canvas";
 import path from "path";
 import fs from "fs";
 
@@ -18,14 +19,17 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Template not found" }, { status: 404 });
   }
 
-  // Dynamic import of sharp (it's a dependency of Next.js)
-  const sharp = (await import("sharp")).default;
+  const template = await loadImage(templatePath);
+  const W = template.width;
+  const H = template.height;
 
-  const meta = await sharp(templatePath).metadata();
-  const W = meta.width ?? 800;
-  const H = meta.height ?? 1040;
+  const canvas = createCanvas(W, H);
+  const ctx = canvas.getContext("2d");
 
-  // Scale positions from reference 800x1040
+  // Draw template background
+  ctx.drawImage(template, 0, 0, W, H);
+
+  // Scale text positions from reference 800x1040
   const sx = W / 800;
   const sy = H / 1040;
   const NAME_X = Math.round(52 * sx);
@@ -34,52 +38,17 @@ export async function GET(request: NextRequest) {
   const AMOUNT_Y = Math.round(665 * sy);
   const FONT_SIZE = Math.round(54 * sx);
 
-  try {
-    // Try sharp native text composite (requires pango on the server)
-    const png = await sharp(templatePath)
-      .composite([
-        {
-          input: {
-            text: {
-              text: `A: ${name}`,
-              font: "sans",
-              fontSize: FONT_SIZE,
-              rgba: true,
-              width: Math.round(700 * sx),
-              height: Math.round(80 * sy),
-            },
-          },
-          top: NAME_Y - FONT_SIZE,
-          left: NAME_X,
-          blend: "over",
-        },
-        {
-          input: {
-            text: {
-              text: `VALORE: \u20AC${amount}`,
-              font: "sans",
-              fontSize: FONT_SIZE,
-              rgba: true,
-              width: Math.round(700 * sx),
-              height: Math.round(80 * sy),
-            },
-          },
-          top: AMOUNT_Y - FONT_SIZE,
-          left: AMOUNT_X,
-          blend: "over",
-        },
-      ])
-      .png()
-      .toBuffer();
+  ctx.fillStyle = "#1a1a1a";
+  ctx.font = `900 ${FONT_SIZE}px Arial, sans-serif`;
+  ctx.fillText(`A: ${name}`, NAME_X, NAME_Y);
+  ctx.fillText(`VALORE: \u20AC${amount}`, AMOUNT_X, AMOUNT_Y);
 
-    return new NextResponse(new Uint8Array(png), {
-      headers: { "Content-Type": "image/png", "Cache-Control": "no-store" },
-    });
-  } catch {
-    // Fallback: return template as-is if text rendering fails
-    const png = await sharp(templatePath).png().toBuffer();
-    return new NextResponse(new Uint8Array(png), {
-      headers: { "Content-Type": "image/png", "Cache-Control": "no-store", "X-Fallback": "1" },
-    });
-  }
+  const buffer = canvas.toBuffer("image/png");
+
+  return new NextResponse(new Uint8Array(buffer), {
+    headers: {
+      "Content-Type": "image/png",
+      "Cache-Control": "no-store",
+    },
+  });
 }

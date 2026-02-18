@@ -10,6 +10,7 @@
     "email": "email dev -p 3001"
   },
   "dependencies": {
+    "@napi-rs/canvas": "^0.1.93",
     "@react-email/components": "^0.0.31",
     "@shopify/app-bridge-react": "^4.2.10",
     "@shopify/polaris": "^13.9.5",
