@@ -38,48 +38,24 @@ export async function GET(request: NextRequest) {
   const name = (searchParams.get("name") || "Cliente").toUpperCase();
   const amount = formatAmount(searchParams.get("amount") || "0");
 
-  const baseUrl = process.env.APP_URL || new URL(request.url).origin;
-  const templateDataUrl = await toDataUrl(`${baseUrl}/gift-card-template.png`);
-
   return new ImageResponse(
     (
-      // In satori: static img is always below absolutely-positioned elements
-      <div style={{ position: "relative", width: W, height: H, display: "flex" }}>
-        {templateDataUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={templateDataUrl}
-            width={W}
-            height={H}
-            alt=""
-          />
-        )}
-        <div
-          style={{
-            position: "absolute",
-            top: NAME_Y,
-            left: NAME_X,
-            color: TEXT_COLOR,
-            fontSize: FONT_SIZE,
-            fontWeight: 900,
-            fontFamily: "sans-serif",
-            lineHeight: 1.1,
-          }}
-        >
+      <div
+        style={{
+          display: "flex",
+          width: W,
+          height: H,
+          background: "#ffffff",
+          alignItems: "center",
+          justifyContent: "center",
+          flexDirection: "column",
+          gap: 40,
+        }}
+      >
+        <div style={{ color: "#ff0000", fontSize: 80, fontWeight: 900, fontFamily: "sans-serif" }}>
           A: {name}
         </div>
-        <div
-          style={{
-            position: "absolute",
-            top: AMOUNT_Y,
-            left: AMOUNT_X,
-            color: TEXT_COLOR,
-            fontSize: FONT_SIZE,
-            fontWeight: 900,
-            fontFamily: "sans-serif",
-            lineHeight: 1.1,
-          }}
-        >
+        <div style={{ color: "#ff0000", fontSize: 80, fontWeight: 900, fontFamily: "sans-serif" }}>
           VALORE: €{amount}
         </div>
       </div>
