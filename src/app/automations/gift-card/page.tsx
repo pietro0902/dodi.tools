@@ -173,7 +173,7 @@ export default function GiftCardAutomationPage() {
   const [giftCardProductUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    setGiftCardImageUrl(`${window.location.origin}/gift-card-template.png`);
+    setGiftCardImageUrl(`${window.location.origin}/api/gift-card-image?name=Maria&amount=50`);
   }, []);
 
   const fetchData = useCallback(async () => {

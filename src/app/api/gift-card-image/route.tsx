@@ -21,36 +21,44 @@ function formatAmount(raw: string): string {
   return Number.isInteger(num) ? String(num) : num.toFixed(2).replace(".", ",");
 }
 
+async function toDataUrl(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const buffer = await res.arrayBuffer();
+    const uint8 = new Uint8Array(buffer);
+    let binary = "";
+    for (let i = 0; i < uint8.length; i++) {
+      binary += String.fromCharCode(uint8[i]);
+    }
+    return `data:image/png;base64,${btoa(binary)}`;
+  } catch {
+    return null;
+  }
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const name = (searchParams.get("name") || "Cliente").toUpperCase();
   const amount = formatAmount(searchParams.get("amount") || "0");
 
-  const baseUrl =
-    process.env.APP_URL || new URL(request.url).origin;
-  const templateUrl = `${baseUrl}/gift-card-template.png`;
+  const baseUrl = process.env.APP_URL || new URL(request.url).origin;
+  const templateDataUrl = await toDataUrl(`${baseUrl}/gift-card-template.png`);
 
   return new ImageResponse(
     (
-      <div
-        style={{
-          position: "relative",
-          width: W,
-          height: H,
-          display: "flex",
-        }}
-      >
-        {/* Background template (clean version without placeholder text) */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={templateUrl}
-          width={W}
-          height={H}
-          style={{ position: "absolute", top: 0, left: 0 }}
-          alt=""
-        />
+      <div style={{ position: "relative", width: W, height: H, display: "flex" }}>
+        {templateDataUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={templateDataUrl}
+            width={W}
+            height={H}
+            style={{ position: "absolute", top: 0, left: 0 }}
+            alt=""
+          />
+        )}
 
-        {/* A: NOME */}
         <div
           style={{
             position: "absolute",
@@ -66,7 +74,6 @@ export async function GET(request: NextRequest) {
           A: {name}
         </div>
 
-        {/* VALORE: IMPORTO */}
         <div
           style={{
             position: "absolute",
