@@ -169,20 +169,29 @@ export default function GiftCardAutomationPage() {
   const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">("desktop");
   const [debouncedPreviewHtml, setDebouncedPreviewHtml] = useState("");
   const previewDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [giftCardImageUrl, setGiftCardImageUrl] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     if (!app) return;
     setLoading(true);
     try {
       const token = await app.idToken();
-      const [settingsRes, templatesRes] = await Promise.all([
+      const [settingsRes, templatesRes, giftCardRes] = await Promise.all([
         fetch("/api/automations/settings", {
           headers: { Authorization: `Bearer ${token}` },
         }),
         fetch("/api/templates", {
           headers: { Authorization: `Bearer ${token}` },
         }),
+        fetch("/api/products/gift-card", {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
       ]);
+
+      if (giftCardRes.ok) {
+        const gcData = await giftCardRes.json();
+        if (gcData.imageUrl) setGiftCardImageUrl(gcData.imageUrl);
+      }
       if (!settingsRes.ok) throw new Error(`HTTP ${settingsRes.status}`);
       const settingsData: AutomationSettings = await settingsRes.json();
       setSettings(settingsData);
@@ -241,19 +250,23 @@ export default function GiftCardAutomationPage() {
   }, [fetchData]);
 
   const previewInputs = useMemo(
-    () => ({ blocks, bgColor, btnColor, containerColor, textColor, subject, preheader }),
-    [blocks, bgColor, btnColor, containerColor, textColor, subject, preheader]
+    () => ({ blocks, bgColor, btnColor, containerColor, textColor, subject, preheader, giftCardImageUrl }),
+    [blocks, bgColor, btnColor, containerColor, textColor, subject, preheader, giftCardImageUrl]
   );
 
   useEffect(() => {
     if (loading) return;
     if (previewDebounceRef.current) clearTimeout(previewDebounceRef.current);
     previewDebounceRef.current = setTimeout(() => {
-      const bodyHtml = blocksToHtml(previewInputs.blocks, previewInputs.btnColor);
+      let bodyHtml = blocksToHtml(previewInputs.blocks, previewInputs.btnColor);
+      bodyHtml = bodyHtml || previewInputs.subject;
+      if (previewInputs.giftCardImageUrl) {
+        bodyHtml = `<div style="text-align:center;margin-bottom:24px;"><img src="${previewInputs.giftCardImageUrl}" alt="Gift Card" style="max-width:360px;width:100%;border-radius:8px;" /></div>` + bodyHtml;
+      }
       const html = buildPreviewHtml({
         subject: previewInputs.subject,
         preheader: previewInputs.preheader,
-        bodyHtml: bodyHtml || previewInputs.subject,
+        bodyHtml,
         ctaText: "",
         ctaUrl: "",
         storeName: STORE_NAME,

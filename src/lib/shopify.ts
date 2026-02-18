@@ -102,6 +102,26 @@ export async function getProductImageUrl(productId: number): Promise<string | nu
   return src || null;
 }
 
+export async function getFirstGiftCardProductImage(): Promise<{ imageUrl: string; title: string } | null> {
+  const data = await graphqlQuery<{
+    products: { edges: Array<{ node: { title: string; featuredImage: { url: string } | null } }> };
+  }>(
+    `query GiftCardProduct {
+      products(first: 1, query: "gift_card:true") {
+        edges {
+          node {
+            title
+            featuredImage { url }
+          }
+        }
+      }
+    }`
+  );
+  const node = data.products.edges[0]?.node;
+  if (!node?.featuredImage?.url) return null;
+  return { imageUrl: node.featuredImage.url, title: node.title };
+}
+
 export async function getOptInCustomers(): Promise<ShopifyCustomer[]> {
   const all: ShopifyCustomer[] = [];
   const headers = await getHeaders();
