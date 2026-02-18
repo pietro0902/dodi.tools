@@ -38,9 +38,9 @@ export async function GET(request: NextRequest) {
   const sx = W / 800;
   const sy = H / 1040;
   const NAME_X = Math.round(210 * sx);
-  const NAME_Y = Math.round(780 * sy);
+  const NAME_Y = Math.round(810 * sy);
   const AMOUNT_X = Math.round(350 * sx);
-  const AMOUNT_Y = Math.round(820 * sy);
+  const AMOUNT_Y = Math.round(790 * sy);
   const FONT_SIZE = Math.round(54 * sx);
 
   const svg = `<?xml version="1.0" encoding="UTF-8"?>
