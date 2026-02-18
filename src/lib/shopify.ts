@@ -93,6 +93,15 @@ export async function getOrder(orderId: number): Promise<OrderWebhookPayload | n
   return (data.order as OrderWebhookPayload) || null;
 }
 
+export async function getProductImageUrl(productId: number): Promise<string | null> {
+  const headers = await getHeaders();
+  const res = await fetch(`${getBaseUrl()}/products/${productId}.json?fields=images`, { headers });
+  if (!res.ok) return null;
+  const data = await res.json();
+  const src = data.product?.images?.[0]?.src as string | undefined;
+  return src || null;
+}
+
 export async function getOptInCustomers(): Promise<ShopifyCustomer[]> {
   const all: ShopifyCustomer[] = [];
   const headers = await getHeaders();

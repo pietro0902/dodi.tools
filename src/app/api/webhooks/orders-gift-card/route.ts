@@ -5,6 +5,7 @@ import { getResendClient } from "@/lib/resend";
 import { getAutomationSettings } from "@/lib/automation-settings";
 import { blocksToHtml } from "@/lib/email-blocks";
 import { logActivity } from "@/lib/activity-log";
+import { getProductImageUrl } from "@/lib/shopify";
 import CampaignEmail from "@/emails/campaign";
 import type { OrderWebhookPayload } from "@/types/shopify";
 
@@ -58,11 +59,20 @@ export async function POST(request: NextRequest) {
 
     const gc = settings.giftCard;
     const subject = replace(gc.subject);
-    const bodyHtml =
+    let bodyHtml =
       gc.blocks && gc.blocks.length > 0
         ? replace(blocksToHtml(gc.blocks, gc.btnColor || "#111827"))
         : replace(gc.bodyHtml);
     const previewText = replace(gc.preheader || gc.subject);
+
+    // Prepend the gift card product image if available
+    const giftCardItem = order.line_items.find((item) => item.gift_card === true);
+    if (giftCardItem?.product_id) {
+      const imageUrl = await getProductImageUrl(giftCardItem.product_id).catch(() => null);
+      if (imageUrl) {
+        bodyHtml = `<div style="text-align:center;margin-bottom:24px;"><img src="${imageUrl}" alt="${giftCardItem.title}" style="max-width:360px;width:100%;border-radius:8px;" /></div>` + bodyHtml;
+      }
+    }
 
     await resend.emails.send({
       from: process.env.EMAIL_FROM!,

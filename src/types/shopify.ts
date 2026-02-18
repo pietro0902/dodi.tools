@@ -43,6 +43,7 @@ export interface OrderLineItem {
   sku: string;
   variant_title: string | null;
   gift_card?: boolean;
+  product_id?: number | null;
 }
 
 export interface OrderAddress {
