@@ -3,11 +3,9 @@ import { NextRequest } from "next/server";
 
 export const runtime = "edge";
 
-// ── Dimensions — must match your template image exactly ──
 const W = 800;
 const H = 1040;
 
-// ── Text positions (px from top-left) — adjust to match your template ──
 const NAME_X = 52;
 const NAME_Y = 575;
 const AMOUNT_X = 52;
@@ -28,9 +26,7 @@ async function toDataUrl(url: string): Promise<string | null> {
     const buffer = await res.arrayBuffer();
     const uint8 = new Uint8Array(buffer);
     let binary = "";
-    for (let i = 0; i < uint8.length; i++) {
-      binary += String.fromCharCode(uint8[i]);
-    }
+    for (let i = 0; i < uint8.length; i++) binary += String.fromCharCode(uint8[i]);
     return `data:image/png;base64,${btoa(binary)}`;
   } catch {
     return null;
@@ -45,61 +41,33 @@ export async function GET(request: NextRequest) {
   const baseUrl = process.env.APP_URL || new URL(request.url).origin;
   const templateDataUrl = await toDataUrl(`${baseUrl}/gift-card-template.png`);
 
+  const textStyle = {
+    color: TEXT_COLOR,
+    fontSize: FONT_SIZE,
+    fontWeight: 900,
+    fontFamily: "sans-serif",
+    lineHeight: 1.1,
+    zIndex: 10,
+  } as const;
+
   return new ImageResponse(
     (
       <div style={{ position: "relative", width: W, height: H, display: "flex" }}>
-        {/* Background image layer */}
         {templateDataUrl && (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={templateDataUrl}
             width={W}
             height={H}
-            style={{ position: "absolute", top: 0, left: 0 }}
+            style={{ position: "absolute", top: 0, left: 0, zIndex: 0 }}
             alt=""
           />
         )}
-
-        {/* Text layer — full-size overlay div ensures it renders above the image */}
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            width: W,
-            height: H,
-            display: "flex",
-          }}
-        >
-          <div
-            style={{
-              position: "absolute",
-              top: NAME_Y,
-              left: NAME_X,
-              color: TEXT_COLOR,
-              fontSize: FONT_SIZE,
-              fontWeight: 900,
-              fontFamily: "sans-serif",
-              lineHeight: 1.1,
-            }}
-          >
-            A: {name}
-          </div>
-
-          <div
-            style={{
-              position: "absolute",
-              top: AMOUNT_Y,
-              left: AMOUNT_X,
-              color: TEXT_COLOR,
-              fontSize: FONT_SIZE,
-              fontWeight: 900,
-              fontFamily: "sans-serif",
-              lineHeight: 1.1,
-            }}
-          >
-            VALORE: €{amount}
-          </div>
+        <div style={{ position: "absolute", top: NAME_Y, left: NAME_X, ...textStyle }}>
+          A: {name}
+        </div>
+        <div style={{ position: "absolute", top: AMOUNT_Y, left: AMOUNT_X, ...textStyle }}>
+          VALORE: €{amount}
         </div>
       </div>
     ),
