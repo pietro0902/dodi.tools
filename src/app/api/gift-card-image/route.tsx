@@ -47,45 +47,59 @@ export async function GET(request: NextRequest) {
 
   return new ImageResponse(
     (
-      <div
-        style={{
-          position: "relative",
-          width: W,
-          height: H,
-          display: "flex",
-          ...(templateDataUrl
-            ? { backgroundImage: `url(${templateDataUrl})`, backgroundSize: "cover" }
-            : { backgroundColor: "#ffffff" }),
-        }}
-      >
-        <div
-          style={{
-            position: "absolute",
-            top: NAME_Y,
-            left: NAME_X,
-            color: TEXT_COLOR,
-            fontSize: FONT_SIZE,
-            fontWeight: 900,
-            fontFamily: "sans-serif",
-            lineHeight: 1.1,
-          }}
-        >
-          A: {name}
-        </div>
+      <div style={{ position: "relative", width: W, height: H, display: "flex" }}>
+        {/* Background image layer */}
+        {templateDataUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={templateDataUrl}
+            width={W}
+            height={H}
+            style={{ position: "absolute", top: 0, left: 0 }}
+            alt=""
+          />
+        )}
 
+        {/* Text layer — full-size overlay div ensures it renders above the image */}
         <div
           style={{
             position: "absolute",
-            top: AMOUNT_Y,
-            left: AMOUNT_X,
-            color: TEXT_COLOR,
-            fontSize: FONT_SIZE,
-            fontWeight: 900,
-            fontFamily: "sans-serif",
-            lineHeight: 1.1,
+            top: 0,
+            left: 0,
+            width: W,
+            height: H,
+            display: "flex",
           }}
         >
-          VALORE: €{amount}
+          <div
+            style={{
+              position: "absolute",
+              top: NAME_Y,
+              left: NAME_X,
+              color: TEXT_COLOR,
+              fontSize: FONT_SIZE,
+              fontWeight: 900,
+              fontFamily: "sans-serif",
+              lineHeight: 1.1,
+            }}
+          >
+            A: {name}
+          </div>
+
+          <div
+            style={{
+              position: "absolute",
+              top: AMOUNT_Y,
+              left: AMOUNT_X,
+              color: TEXT_COLOR,
+              fontSize: FONT_SIZE,
+              fontWeight: 900,
+              fontFamily: "sans-serif",
+              lineHeight: 1.1,
+            }}
+          >
+            VALORE: €{amount}
+          </div>
         </div>
       </div>
     ),
