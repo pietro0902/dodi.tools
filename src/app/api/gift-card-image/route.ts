@@ -33,12 +33,15 @@ export async function GET(request: NextRequest) {
   const W = meta.width ?? 800;
   const H = meta.height ?? 1040;
 
-  // SVG overlay with the text
-  const NAME_X = 52;
-  const NAME_Y = 575;
-  const AMOUNT_X = 52;
-  const AMOUNT_Y = 665;
-  const FONT_SIZE = 54;
+  // Scale positions proportionally from reference dimensions (800x1040)
+  const scaleX = W / 800;
+  const scaleY = H / 1040;
+
+  const NAME_X = Math.round(52 * scaleX);
+  const NAME_Y = Math.round(575 * scaleY);
+  const AMOUNT_X = Math.round(52 * scaleX);
+  const AMOUNT_Y = Math.round(665 * scaleY);
+  const FONT_SIZE = Math.round(54 * scaleX);
 
   const svg = `
     <svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">
@@ -48,7 +51,7 @@ export async function GET(request: NextRequest) {
         font-family="Arial, sans-serif"
         font-size="${FONT_SIZE}"
         font-weight="900"
-        fill="#1a1a1a"
+        fill="#ff0000"
       >A: ${name}</text>
       <text
         x="${AMOUNT_X}"
@@ -56,7 +59,7 @@ export async function GET(request: NextRequest) {
         font-family="Arial, sans-serif"
         font-size="${FONT_SIZE}"
         font-weight="900"
-        fill="#1a1a1a"
+        fill="#ff0000"
       >VALORE: \u20AC${amount}</text>
     </svg>
   `;
