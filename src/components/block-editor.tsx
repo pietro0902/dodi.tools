@@ -427,6 +427,14 @@ export function BlockEditor({
                     />
                   </div>
                 )}
+                <TextField
+                  label="Testo bottone"
+                  value={block.buttonText ?? "Acquista Gift Card"}
+                  onChange={(v) => updateBlock(block.id, { buttonText: v })}
+                  placeholder="Acquista Gift Card"
+                  autoComplete="off"
+                  helpText="Lascia vuoto per nascondere il bottone."
+                />
               </BlockStack>
             )}
           </BlockStack>

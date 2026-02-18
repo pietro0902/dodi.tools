@@ -50,6 +50,7 @@ export interface DividerBlock {
 export interface GiftCardImageBlock {
   id: string;
   type: "gift_card_image";
+  buttonText?: string;
 }
 
 export type EmailBlock =
@@ -85,7 +86,7 @@ export function createDefaultBlock(type: EmailBlockType): EmailBlock {
     case "divider":
       return { id, type: "divider" };
     case "gift_card_image":
-      return { id, type: "gift_card_image" };
+      return { id, type: "gift_card_image", buttonText: "Acquista Gift Card" };
   }
 }
 
@@ -124,8 +125,13 @@ export function blocksToHtml(blocks: EmailBlock[], btnColor: string): string {
         case "divider":
           return `<hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0" />`;
 
-        case "gift_card_image":
-          return `<div style="text-align:center;margin:0 0 24px 0"><img src="__GIFT_CARD_IMAGE__" alt="Gift Card" style="max-width:360px;width:100%;border-radius:8px;display:block;margin:0 auto" /></div>`;
+        case "gift_card_image": {
+          const btn = block.buttonText?.trim();
+          const buttonHtml = btn
+            ? `<div style="margin-top:16px"><a href="__GIFT_CARD_URL__" style="display:inline-block;background-color:${btnColor};color:#ffffff;font-size:16px;font-weight:600;text-decoration:none;padding:12px 32px;border-radius:6px">${btn}</a></div>`
+            : "";
+          return `<div style="text-align:center;margin:0 0 24px 0"><img src="__GIFT_CARD_IMAGE__" alt="Gift Card" style="max-width:360px;width:100%;border-radius:8px;display:block;margin:0 auto" />${buttonHtml}</div>`;
+        }
       }
     })
     .filter(Boolean)

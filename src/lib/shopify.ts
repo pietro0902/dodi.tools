@@ -93,24 +93,27 @@ export async function getOrder(orderId: number): Promise<OrderWebhookPayload | n
   return (data.order as OrderWebhookPayload) || null;
 }
 
-export async function getProductImageUrl(productId: number): Promise<string | null> {
+export async function getProductInfo(productId: number): Promise<{ imageUrl: string | null; productUrl: string | null }> {
   const headers = await getHeaders();
-  const res = await fetch(`${getBaseUrl()}/products/${productId}.json?fields=images`, { headers });
-  if (!res.ok) return null;
+  const res = await fetch(`${getBaseUrl()}/products/${productId}.json?fields=handle,images`, { headers });
+  if (!res.ok) return { imageUrl: null, productUrl: null };
   const data = await res.json();
-  const src = data.product?.images?.[0]?.src as string | undefined;
-  return src || null;
+  const imageUrl = (data.product?.images?.[0]?.src as string | undefined) || null;
+  const handle = data.product?.handle as string | undefined;
+  const productUrl = handle ? `${STORE_URL}/products/${handle}` : null;
+  return { imageUrl, productUrl };
 }
 
-export async function getFirstGiftCardProductImage(): Promise<{ imageUrl: string; title: string } | null> {
+export async function getFirstGiftCardProductImage(): Promise<{ imageUrl: string; title: string; productUrl: string } | null> {
   const data = await graphqlQuery<{
-    products: { edges: Array<{ node: { title: string; featuredImage: { url: string } | null } }> };
+    products: { edges: Array<{ node: { title: string; handle: string; featuredImage: { url: string } | null } }> };
   }>(
     `query GiftCardProduct {
       products(first: 1, query: "gift_card:true") {
         edges {
           node {
             title
+            handle
             featuredImage { url }
           }
         }
@@ -119,7 +122,11 @@ export async function getFirstGiftCardProductImage(): Promise<{ imageUrl: string
   );
   const node = data.products.edges[0]?.node;
   if (!node?.featuredImage?.url) return null;
-  return { imageUrl: node.featuredImage.url, title: node.title };
+  return {
+    imageUrl: node.featuredImage.url,
+    title: node.title,
+    productUrl: `${STORE_URL}/products/${node.handle}`,
+  };
 }
 
 export async function getOptInCustomers(): Promise<ShopifyCustomer[]> {

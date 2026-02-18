@@ -170,6 +170,7 @@ export default function GiftCardAutomationPage() {
   const [debouncedPreviewHtml, setDebouncedPreviewHtml] = useState("");
   const previewDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [giftCardImageUrl, setGiftCardImageUrl] = useState<string | null>(null);
+  const [giftCardProductUrl, setGiftCardProductUrl] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     if (!app) return;
@@ -191,6 +192,7 @@ export default function GiftCardAutomationPage() {
       if (giftCardRes.ok) {
         const gcData = await giftCardRes.json();
         if (gcData.imageUrl) setGiftCardImageUrl(gcData.imageUrl);
+        if (gcData.productUrl) setGiftCardProductUrl(gcData.productUrl);
       }
       if (!settingsRes.ok) throw new Error(`HTTP ${settingsRes.status}`);
       const settingsData: AutomationSettings = await settingsRes.json();
@@ -250,8 +252,8 @@ export default function GiftCardAutomationPage() {
   }, [fetchData]);
 
   const previewInputs = useMemo(
-    () => ({ blocks, bgColor, btnColor, containerColor, textColor, subject, preheader, giftCardImageUrl }),
-    [blocks, bgColor, btnColor, containerColor, textColor, subject, preheader, giftCardImageUrl]
+    () => ({ blocks, bgColor, btnColor, containerColor, textColor, subject, preheader, giftCardImageUrl, giftCardProductUrl }),
+    [blocks, bgColor, btnColor, containerColor, textColor, subject, preheader, giftCardImageUrl, giftCardProductUrl]
   );
 
   useEffect(() => {
@@ -260,11 +262,16 @@ export default function GiftCardAutomationPage() {
     previewDebounceRef.current = setTimeout(() => {
       let bodyHtml = blocksToHtml(previewInputs.blocks, previewInputs.btnColor);
       bodyHtml = bodyHtml || previewInputs.subject;
-      // Replace gift card image placeholder with the real product image for preview
+      // Replace gift card placeholders for preview
       if (previewInputs.giftCardImageUrl) {
         bodyHtml = bodyHtml.replace(/__GIFT_CARD_IMAGE__/g, previewInputs.giftCardImageUrl);
       } else {
-        bodyHtml = bodyHtml.replace(/<div[^>]*><img src="__GIFT_CARD_IMAGE__"[^>]*><\/div>/g, "");
+        bodyHtml = bodyHtml.replace(/<div[^>]*><img src="__GIFT_CARD_IMAGE__"[^>]*\/>.*?<\/div>/gs, "");
+      }
+      if (previewInputs.giftCardProductUrl) {
+        bodyHtml = bodyHtml.replace(/__GIFT_CARD_URL__/g, previewInputs.giftCardProductUrl);
+      } else {
+        bodyHtml = bodyHtml.replace(/__GIFT_CARD_URL__/g, "#");
       }
       const html = buildPreviewHtml({
         subject: previewInputs.subject,
