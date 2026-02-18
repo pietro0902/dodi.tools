@@ -15,6 +15,7 @@
     "@shopify/polaris": "^13.9.5",
     "@shopify/polaris-icons": "^9.3.1",
     "@upstash/qstash": "^2.9.0",
+    "@vercel/og": "^0.8.6",
     "next": "^16.1.6",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
