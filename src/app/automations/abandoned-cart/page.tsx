@@ -693,16 +693,16 @@ export default function AbandonedCartAutomationPage() {
                     border: "1px solid #e5e7eb",
                     borderRadius: "8px",
                     overflow: "hidden",
-                    maxWidth: previewMode === "mobile" ? "375px" : "600px",
-                    margin: "0 auto",
-                    height: "500px",
-                    transition: "max-width 0.3s ease",
+                    display: "flex",
+                    justifyContent: "center",
+                    height: "600px",
+                    backgroundColor: "#f9fafb",
                   }}
                 >
                   <iframe
                     srcDoc={debouncedPreviewHtml}
                     title="Anteprima carrello abbandonato"
-                    style={{ width: "100%", height: "100%", border: "none" }}
+                    style={{ width: previewMode === "desktop" ? "600px" : "375px", height: "100%", border: "none", flexShrink: 0 }}
                     sandbox="allow-same-origin"
                   />
                 </div>
