@@ -53,6 +53,11 @@ export interface GiftCardImageBlock {
   buttonText?: string;
 }
 
+export interface CartItemsBlock {
+  id: string;
+  type: "cart_items";
+}
+
 export type EmailBlock =
   | TextBlock
   | ImageBlock
@@ -60,7 +65,8 @@ export type EmailBlock =
   | ProductsBlock
   | LogoBlock
   | DividerBlock
-  | GiftCardImageBlock;
+  | GiftCardImageBlock
+  | CartItemsBlock;
 
 export type EmailBlockType = EmailBlock["type"];
 
@@ -87,6 +93,8 @@ export function createDefaultBlock(type: EmailBlockType): EmailBlock {
       return { id, type: "divider" };
     case "gift_card_image":
       return { id, type: "gift_card_image", buttonText: "Scarica l'immagine" };
+    case "cart_items":
+      return { id, type: "cart_items" };
   }
 }
 
@@ -124,6 +132,9 @@ export function blocksToHtml(blocks: EmailBlock[], btnColor: string): string {
 
         case "divider":
           return `<hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0" />`;
+
+        case "cart_items":
+          return `__CART_ITEMS__`;
 
         case "gift_card_image": {
           const btn = block.buttonText?.trim();

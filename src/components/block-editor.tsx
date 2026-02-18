@@ -23,6 +23,7 @@ interface BlockEditorProps {
   onOpenProductPicker: (blockId: string) => void;
   onOpenImageUploader: (blockId: string) => void;
   giftCardImageUrl?: string | null;
+  showCartItemsBlock?: boolean;
 }
 
 const BLOCK_LABELS: Record<EmailBlockType, string> = {
@@ -33,6 +34,7 @@ const BLOCK_LABELS: Record<EmailBlockType, string> = {
   logo: "Logo",
   divider: "Separatore",
   gift_card_image: "Immagine Gift Card",
+  cart_items: "Prodotti nel carrello",
 };
 
 export function BlockEditor({
@@ -41,6 +43,7 @@ export function BlockEditor({
   onOpenProductPicker,
   onOpenImageUploader,
   giftCardImageUrl,
+  showCartItemsBlock,
 }: BlockEditorProps) {
   function updateBlock(id: string, patch: Partial<EmailBlock>) {
     onChange(
@@ -412,6 +415,28 @@ export function BlockEditor({
               />
             )}
 
+            {block.type === "cart_items" && (
+              <BlockStack gap="200">
+                <Text as="p" variant="bodySm" tone="subdued">
+                  I prodotti nel carrello del cliente vengono inseriti automaticamente in questa posizione.
+                </Text>
+                <div style={{ border: "1px solid #e5e7eb", borderRadius: "6px", padding: "12px", backgroundColor: "#f9fafb" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", color: "#374151" }}>
+                    <tbody>
+                      <tr>
+                        <td style={{ padding: "6px 0", borderBottom: "1px solid #f3f4f6" }}>Prodotto esempio × 1</td>
+                        <td style={{ padding: "6px 0", borderBottom: "1px solid #f3f4f6", textAlign: "right" }}>€29,99</td>
+                      </tr>
+                      <tr>
+                        <td style={{ padding: "8px 0 0", fontWeight: 600 }}>Totale</td>
+                        <td style={{ padding: "8px 0 0", fontWeight: 600, textAlign: "right" }}>€29,99</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </BlockStack>
+            )}
+
             {block.type === "gift_card_image" && (
               <BlockStack gap="200">
                 <Text as="p" variant="bodySm" tone="subdued">
@@ -467,6 +492,11 @@ export function BlockEditor({
         {giftCardImageUrl != null && (
           <Button size="slim" onClick={() => addBlock("gift_card_image")}>
             + Gift Card
+          </Button>
+        )}
+        {showCartItemsBlock && (
+          <Button size="slim" onClick={() => addBlock("cart_items")}>
+            + Carrello
           </Button>
         )}
       </InlineStack>

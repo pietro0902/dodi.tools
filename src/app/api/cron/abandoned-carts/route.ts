@@ -77,7 +77,9 @@ export async function POST(request: Request) {
       const baseHtml = ac.blocks && ac.blocks.length > 0
         ? replace(blocksToHtml(ac.blocks, ac.btnColor || "#111827"))
         : replace(ac.bodyHtml);
-      const fullBodyHtml = baseHtml + cartHtml;
+      const fullBodyHtml = baseHtml.includes("__CART_ITEMS__")
+        ? baseHtml.replace("__CART_ITEMS__", cartHtml)
+        : baseHtml + cartHtml;
       const previewText = replace(ac.preheader || ac.subject);
 
       await resend.emails.send({
