@@ -1,5 +1,23 @@
 // Webhook Payloads
 
+export interface GiftCardWebhookPayload {
+  id: number;
+  balance: string;
+  created_at: string;
+  currency: string;
+  customer_id: number | null;
+  disabled_at: string | null;
+  expires_on: string | null;
+  initial_value: string;
+  last_characters: string;
+  line_item_id: number | null;
+  note: string | null;
+  order_id: number | null;
+  template_suffix: string | null;
+  updated_at: string;
+  user_id: number | null;
+}
+
 export interface EmailMarketingConsent {
   state: "subscribed" | "not_subscribed" | "unsubscribed" | "pending" | "redacted";
   opt_in_level: "single_opt_in" | "confirmed_opt_in" | "unknown";
@@ -24,6 +42,7 @@ export interface OrderLineItem {
   price: string;
   sku: string;
   variant_title: string | null;
+  gift_card?: boolean;
 }
 
 export interface OrderAddress {

@@ -21,6 +21,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ skipped: "No email" }, { status: 200 });
     }
 
+    // Orders with only gift cards are handled by the orders-gift-card webhook
+    const allGiftCards =
+      order.line_items.length > 0 &&
+      order.line_items.every((item) => item.gift_card === true);
+    if (allGiftCards) {
+      return NextResponse.json({ skipped: "Gift card order (handled separately)" }, { status: 200 });
+    }
+
     if (!hasMarketingConsent(order.customer?.email_marketing_consent)) {
       return NextResponse.json(
         { skipped: "No marketing consent" },

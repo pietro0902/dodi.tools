@@ -6,6 +6,7 @@ import type {
   ShopifyProduct,
   ShopifyCollection,
   ProductSortKey,
+  OrderWebhookPayload,
 } from "@/types/shopify";
 
 let cachedToken: { value: string; expiresAt: number } | null = null;
@@ -82,6 +83,14 @@ export async function getAbandonedCheckouts(): Promise<AbandonedCheckout[]> {
   }
 
   return all;
+}
+
+export async function getOrder(orderId: number): Promise<OrderWebhookPayload | null> {
+  const headers = await getHeaders();
+  const res = await fetch(`${getBaseUrl()}/orders/${orderId}.json`, { headers });
+  if (!res.ok) return null;
+  const data = await res.json();
+  return (data.order as OrderWebhookPayload) || null;
 }
 
 export async function getOptInCustomers(): Promise<ShopifyCustomer[]> {

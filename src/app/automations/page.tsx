@@ -45,7 +45,7 @@ export default function AutomationsPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [settings, setSettings] = useState<AutomationSettings | null>(null);
-  const [toggling, setToggling] = useState<"welcome" | "abandonedCart" | null>(null);
+  const [toggling, setToggling] = useState<"welcome" | "abandonedCart" | "giftCard" | null>(null);
 
   const fetchSettings = useCallback(async () => {
     if (!app) return;
@@ -75,7 +75,7 @@ export default function AutomationsPage() {
   }, [fetchSettings]);
 
   const handleToggle = useCallback(
-    async (section: "welcome" | "abandonedCart") => {
+    async (section: "welcome" | "abandonedCart" | "giftCard") => {
       if (!app || !settings) return;
       setToggling(section);
       try {
@@ -100,10 +100,14 @@ export default function AutomationsPage() {
           throw new Error(data.error || `HTTP ${res.status}`);
         }
         setSettings(updated);
+        const label =
+          section === "welcome"
+            ? "Benvenuto"
+            : section === "abandonedCart"
+            ? "Carrello abbandonato"
+            : "Gift card";
         app.toast.show(
-          `${section === "welcome" ? "Benvenuto" : "Carrello abbandonato"} ${
-            updated[section].enabled ? "attivata" : "disattivata"
-          }`
+          `${label} ${updated[section].enabled ? "attivata" : "disattivata"}`
         );
       } catch (err) {
         app.toast.show(
@@ -220,6 +224,43 @@ export default function AutomationsPage() {
               <Text as="p" variant="bodySm" tone="subdued">
                 Inviata ai clienti che hanno abbandonato il carrello.
                 I dettagli dei prodotti vengono aggiunti automaticamente.
+              </Text>
+            </BlockStack>
+          </Card>
+        </Layout.Section>
+
+        {/* Gift Card */}
+        <Layout.Section>
+          <Card>
+            <BlockStack gap="300">
+              <InlineStack align="space-between" blockAlign="center">
+                <InlineStack gap="300" blockAlign="center">
+                  <Text as="h2" variant="headingMd">
+                    Gift Card Acquistata
+                  </Text>
+                  <Badge tone={settings.giftCard.enabled ? "success" : undefined}>
+                    {settings.giftCard.enabled ? "Attiva" : "Disattiva"}
+                  </Badge>
+                </InlineStack>
+                <InlineStack gap="200">
+                  <Button
+                    size="slim"
+                    onClick={() => handleToggle("giftCard")}
+                    loading={toggling === "giftCard"}
+                  >
+                    {settings.giftCard.enabled ? "Disabilita" : "Abilita"}
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="slim"
+                    onClick={() => router.push("/automations/gift-card")}
+                  >
+                    Modifica
+                  </Button>
+                </InlineStack>
+              </InlineStack>
+              <Text as="p" variant="bodySm" tone="subdued">
+                Inviata all&apos;acquirente quando viene comprata una gift card sul sito.
               </Text>
             </BlockStack>
           </Card>

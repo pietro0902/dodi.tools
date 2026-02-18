@@ -26,6 +26,17 @@ export interface AutomationSettings {
     containerColor: string;
     textColor: string;
   };
+  giftCard: {
+    enabled: boolean;
+    subject: string;
+    bodyHtml: string;
+    preheader: string;
+    blocks: EmailBlock[];
+    bgColor: string;
+    btnColor: string;
+    containerColor: string;
+    textColor: string;
+  };
 }
 
 const STORE_NAME = process.env.STORE_NAME || "Dodi's";
@@ -33,6 +44,7 @@ const STORE_NAME = process.env.STORE_NAME || "Dodi's";
 export function getDefaultSettings(): AutomationSettings {
   const welcomeBody = `<p>Ciao {{name}},</p>\n<p>Grazie per esserti iscritto a ${STORE_NAME}! Siamo felici di averti con noi.</p>\n<p>Scopri le nostre ultime novit\u00e0 e approfitta delle offerte riservate ai nuovi iscritti.</p>`;
   const cartBody = `<p>Ciao {{name}},</p>\n<p>Hai lasciato degli articoli nel carrello. Non lasciarli scappare!</p>`;
+  const giftCardBody = `<p>Ciao {{name}},</p>\n<p>Grazie per aver acquistato una gift card di ${STORE_NAME}! Il destinatario potr\u00e0 usarla per i suoi prossimi acquisti.</p>`;
 
   return {
     welcome: {
@@ -52,6 +64,17 @@ export function getDefaultSettings(): AutomationSettings {
       bodyHtml: cartBody,
       delayHours: 4,
       maxAgeHours: 48,
+      preheader: "",
+      blocks: [],
+      bgColor: "#f9fafb",
+      btnColor: "#111827",
+      containerColor: "#ffffff",
+      textColor: "#374151",
+    },
+    giftCard: {
+      enabled: true,
+      subject: `Grazie per il tuo acquisto della gift card!`,
+      bodyHtml: giftCardBody,
       preheader: "",
       blocks: [],
       bgColor: "#f9fafb",
@@ -99,6 +122,7 @@ export async function getAutomationSettings(): Promise<AutomationSettings> {
       return {
         welcome: { ...defaults.welcome, ...saved.welcome },
         abandonedCart: { ...defaults.abandonedCart, ...saved.abandonedCart },
+        giftCard: { ...defaults.giftCard, ...saved.giftCard },
       };
     }
   } catch (error) {
