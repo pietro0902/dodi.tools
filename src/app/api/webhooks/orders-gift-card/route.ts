@@ -87,9 +87,6 @@ export async function POST(request: NextRequest) {
         summary: `Email gift card inviata a ${order.email} (ordine #${order.order_number})`,
         details: {
           customerEmail: order.email,
-          orderNumber: order.order_number,
-          totalPrice: order.total_price,
-          currency: order.currency,
         },
       });
     } catch (logErr) {
