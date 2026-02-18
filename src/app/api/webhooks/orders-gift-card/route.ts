@@ -5,7 +5,6 @@ import { getResendClient } from "@/lib/resend";
 import { getAutomationSettings } from "@/lib/automation-settings";
 import { blocksToHtml } from "@/lib/email-blocks";
 import { logActivity } from "@/lib/activity-log";
-import { getProductInfo } from "@/lib/shopify";
 import CampaignEmail from "@/emails/campaign";
 import type { OrderWebhookPayload } from "@/types/shopify";
 
@@ -65,19 +64,19 @@ export async function POST(request: NextRequest) {
         : replace(gc.bodyHtml);
     const previewText = replace(gc.preheader || gc.subject);
 
-    // Replace gift card placeholders with real product image and URL
+    // Replace gift card placeholders with a personalized generated image
     if (bodyHtml.includes("__GIFT_CARD_IMAGE__") || bodyHtml.includes("__GIFT_CARD_URL__")) {
       const giftCardItem = order.line_items.find((item) => item.gift_card === true);
-      const { imageUrl, productUrl } = giftCardItem?.product_id
-        ? await getProductInfo(giftCardItem.product_id).catch(() => ({ imageUrl: null, productUrl: null }))
-        : { imageUrl: null, productUrl: null };
-
-      if (imageUrl) {
-        bodyHtml = bodyHtml.replace(/__GIFT_CARD_IMAGE__/g, imageUrl);
+      const appUrl = process.env.APP_URL || "";
+      if (appUrl && giftCardItem) {
+        const amount = giftCardItem.price || "0";
+        const generatedImageUrl = `${appUrl}/api/gift-card-image?name=${encodeURIComponent(firstName)}&amount=${encodeURIComponent(amount)}`;
+        bodyHtml = bodyHtml.replace(/__GIFT_CARD_IMAGE__/g, generatedImageUrl);
+        bodyHtml = bodyHtml.replace(/__GIFT_CARD_URL__/g, generatedImageUrl);
       } else {
         bodyHtml = bodyHtml.replace(/<div[^>]*><img src="__GIFT_CARD_IMAGE__"[^>]*\/>[\s\S]*?<\/div>/g, "");
+        bodyHtml = bodyHtml.replace(/__GIFT_CARD_URL__/g, "#");
       }
-      bodyHtml = bodyHtml.replace(/__GIFT_CARD_URL__/g, productUrl ?? "#");
     }
 
     await resend.emails.send({

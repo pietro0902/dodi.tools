@@ -169,31 +169,23 @@ export default function GiftCardAutomationPage() {
   const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">("desktop");
   const [debouncedPreviewHtml, setDebouncedPreviewHtml] = useState("");
   const previewDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [giftCardImageUrl, setGiftCardImageUrl] = useState<string | null>(null);
-  const [giftCardProductUrl, setGiftCardProductUrl] = useState<string | null>(null);
+  const [giftCardImageUrl] = useState<string>("/api/gift-card-image?name=Maria&amount=50");
+  const [giftCardProductUrl] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     if (!app) return;
     setLoading(true);
     try {
       const token = await app.idToken();
-      const [settingsRes, templatesRes, giftCardRes] = await Promise.all([
+      const [settingsRes, templatesRes] = await Promise.all([
         fetch("/api/automations/settings", {
           headers: { Authorization: `Bearer ${token}` },
         }),
         fetch("/api/templates", {
           headers: { Authorization: `Bearer ${token}` },
         }),
-        fetch("/api/products/gift-card", {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
       ]);
 
-      if (giftCardRes.ok) {
-        const gcData = await giftCardRes.json();
-        if (gcData.imageUrl) setGiftCardImageUrl(gcData.imageUrl);
-        if (gcData.productUrl) setGiftCardProductUrl(gcData.productUrl);
-      }
       if (!settingsRes.ok) throw new Error(`HTTP ${settingsRes.status}`);
       const settingsData: AutomationSettings = await settingsRes.json();
       setSettings(settingsData);
