@@ -9,7 +9,8 @@ export interface ActivityEntry {
     | "scheduled_campaign_sent"
     | "abandoned_cart_batch"
     | "welcome_email"
-    | "post_purchase_email";
+    | "post_purchase_email"
+    | "gift_card_email";
   timestamp: string;
   summary: string;
   details?: {
