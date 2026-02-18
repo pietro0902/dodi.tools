@@ -47,18 +47,17 @@ export async function GET(request: NextRequest) {
 
   return new ImageResponse(
     (
-      <div style={{ position: "relative", width: W, height: H, display: "flex" }}>
-        {templateDataUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={templateDataUrl}
-            width={W}
-            height={H}
-            style={{ position: "absolute", top: 0, left: 0 }}
-            alt=""
-          />
-        )}
-
+      <div
+        style={{
+          position: "relative",
+          width: W,
+          height: H,
+          display: "flex",
+          ...(templateDataUrl
+            ? { backgroundImage: `url(${templateDataUrl})`, backgroundSize: "cover" }
+            : { backgroundColor: "#ffffff" }),
+        }}
+      >
         <div
           style={{
             position: "absolute",
