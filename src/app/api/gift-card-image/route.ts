@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
   const NAME_X = Math.round(210 * sx);
   const NAME_Y = Math.round(765 * sy);
   const AMOUNT_X = Math.round(350 * sx);
-  const AMOUNT_Y = Math.round(835 * sy);
+  const AMOUNT_Y = Math.round(840 * sy);
   const FONT_SIZE = Math.round(54 * sx);
 
   const svg = `<?xml version="1.0" encoding="UTF-8"?>
