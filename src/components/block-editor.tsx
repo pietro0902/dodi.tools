@@ -429,9 +429,9 @@ export function BlockEditor({
                 )}
                 <TextField
                   label="Testo bottone"
-                  value={block.buttonText ?? "Acquista Gift Card"}
+                  value={block.buttonText ?? "Scarica l'immagine"}
                   onChange={(v) => updateBlock(block.id, { buttonText: v })}
-                  placeholder="Acquista Gift Card"
+                  placeholder="Scarica l'immagine"
                   autoComplete="off"
                   helpText="Lascia vuoto per nascondere il bottone."
                 />
