@@ -41,6 +41,7 @@ export function buildCartItemsHtml(
     .map((row) => {
       const cells = row
         .map((item) => {
+
           const variant = item.variantTitle ? item.variantTitle : null;
           const imgHtml = item.imageUrl
             ? `<img src="${escapeHtml(item.imageUrl)}" alt="${escapeHtml(item.title)}" width="200" style="display:block;width:100%;height:auto;border-radius:8px 8px 0 0" />`
@@ -74,11 +75,6 @@ export function buildCartItemsHtml(
   return `
 <table width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0;border-collapse:collapse">
   ${rowsHtml}
-  <tr>
-    <td colspan="3" style="padding:12px 6px 0;font-size:16px;font-weight:bold;color:${textColor};text-align:right;border-top:1px solid #e5e7eb">
-      Totale: ${formatPrice(totalPrice)}
-    </td>
-  </tr>
 </table>
 <div style="text-align:center;margin:24px 0">
   <a href="${escapeHtml(checkoutUrl)}" style="display:inline-block;background-color:${btnColor};color:${btnTextColor};font-size:16px;font-weight:600;text-decoration:none;padding:12px 32px;border-radius:6px">
