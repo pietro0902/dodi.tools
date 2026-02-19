@@ -752,9 +752,6 @@ export default function GiftCardAutomationPage() {
                     <Box minWidth="200px">
                       <TextField label="La tua email di test" value={testEmail} onChange={(v) => { setTestEmail(v); setTestSent(false); }} autoComplete="email" type="email" />
                     </Box>
-                    <Box minWidth="140px">
-                      <TextField label="Nome" value={testName} onChange={(v) => { setTestName(v); setTestSent(false); }} autoComplete="off" />
-                    </Box>
                     <Box minWidth="100px">
                       <TextField label="Importo (€)" value={testAmount} onChange={(v) => { setTestAmount(v); setTestSent(false); }} autoComplete="off" type="number" />
                     </Box>
@@ -792,7 +789,6 @@ export default function GiftCardAutomationPage() {
                           <Button
                             size="slim"
                             onClick={() => {
-                              setTestName(order.customer?.first_name || "Cliente");
                               setTestAmount(order.line_items[0]?.price || order.total_price);
                               setTestSent(false);
                             }}
