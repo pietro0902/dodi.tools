@@ -8,11 +8,17 @@ let wasmInitPromise: Promise<void> | null = null;
 function ensureWasm(): Promise<void> {
   if (!wasmInitPromise) {
     wasmInitPromise = (async () => {
-      const wasmPath = path.join(
-        process.cwd(),
-        "node_modules/@resvg/resvg-wasm/index_bg.wasm"
-      );
-      await initWasm(fs.readFileSync(wasmPath));
+      // Try public folder first (works on Vercel), fall back to node_modules
+      const publicWasm = path.join(process.cwd(), "public", "resvg.wasm");
+      if (fs.existsSync(publicWasm)) {
+        await initWasm(fs.readFileSync(publicWasm));
+      } else {
+        const nodeWasm = path.join(
+          process.cwd(),
+          "node_modules/@resvg/resvg-wasm/index_bg.wasm"
+        );
+        await initWasm(fs.readFileSync(nodeWasm));
+      }
     })();
   }
   return wasmInitPromise;
@@ -20,12 +26,10 @@ function ensureWasm(): Promise<void> {
 
 let cachedFont: Buffer | null = null;
 
-async function getFont(): Promise<Buffer> {
+function getFont(): Buffer {
   if (cachedFont) return cachedFont;
-  const res = await fetch(
-    "https://fonts.gstatic.com/s/inter/v13/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuLyfAZ9hiJ-Ek-_EeA.woff"
-  );
-  cachedFont = Buffer.from(await res.arrayBuffer());
+  const fontPath = path.join(process.cwd(), "public", "inter-bold.woff");
+  cachedFont = fs.readFileSync(fontPath);
   return cachedFont;
 }
 
@@ -65,7 +69,7 @@ export async function GET(request: NextRequest) {
     const FONT_SIZE = Math.round(54 * sx);
 
     await ensureWasm();
-    const fontBuffer = await getFont();
+    const fontBuffer = getFont();
     const fontBase64 = fontBuffer.toString("base64");
 
     // Build SVG with only the text overlay (transparent background)
