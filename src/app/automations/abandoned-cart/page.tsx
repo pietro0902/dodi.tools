@@ -27,6 +27,7 @@ import type { CustomTemplate } from "@/lib/custom-templates";
 import type { ProductLayout } from "@/lib/product-html";
 import type { ShopifyProduct, ShopifyCollection } from "@/types/shopify";
 import { blocksToHtml, templateToBlocks } from "@/lib/email-blocks";
+import { buildCartItemsHtml } from "@/lib/cart-html";
 import { buildPreviewHtml } from "@/lib/preview-wrapper";
 import { BlockEditor } from "@/components/block-editor";
 import { ImagePickerModal } from "@/components/image-picker-modal";
@@ -264,7 +265,19 @@ export default function AbandonedCartAutomationPage() {
     if (previewDebounceRef.current) clearTimeout(previewDebounceRef.current);
     previewDebounceRef.current = setTimeout(() => {
       let bodyHtml = blocksToHtml(previewInputs.blocks, previewInputs.btnColor);
-      const sampleCartHtml = `<table width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0"><tr><td style="padding:8px 0;border-bottom:1px solid #f3f4f6;font-size:14px;color:#374151">Prodotto esempio × 1</td><td style="padding:8px 0;border-bottom:1px solid #f3f4f6;font-size:14px;color:#374151;text-align:right">€29,99</td></tr><tr><td style="padding:12px 0 0;font-size:16px;font-weight:bold;color:#111827">Totale</td><td style="padding:12px 0 0;font-size:16px;font-weight:bold;color:#111827;text-align:right">€29,99</td></tr></table><div style="text-align:center;margin:24px 0"><a href="#" style="display:inline-block;background-color:#111827;color:#ffffff;font-size:16px;font-weight:600;text-decoration:none;padding:12px 32px;border-radius:6px">Completa l'acquisto</a></div>`;
+      const cartBlock = previewInputs.blocks.find((b) => b.type === "cart_items");
+      const cartColors = cartBlock?.type === "cart_items" ? {
+        textColor: cartBlock.textColor,
+        btnColor: cartBlock.btnColor,
+        btnTextColor: cartBlock.btnTextColor,
+      } : {};
+      const sampleCartHtml = buildCartItemsHtml(
+        [{ title: "Prodotto esempio", quantity: 1, price: "29.99" }],
+        "29.99",
+        "EUR",
+        "#",
+        cartColors
+      );
       if (bodyHtml.includes("__CART_ITEMS__")) {
         bodyHtml = bodyHtml.replace("__CART_ITEMS__", sampleCartHtml);
       } else {
