@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAbandonedCheckouts } from "@/lib/shopify";
+import { getAbandonedCheckouts, enrichCheckoutLineItemImages } from "@/lib/shopify";
 import { getResendClient } from "@/lib/resend";
 import { getAutomationSettings } from "@/lib/automation-settings";
 import { blocksToHtml } from "@/lib/email-blocks";
@@ -52,8 +52,10 @@ export async function POST(request: Request) {
       btnTextColor: cartBlock.btnTextColor,
     } : {};
 
+    const enrichedItems = await enrichCheckoutLineItemImages(checkout.line_items);
+
     const cartHtml = buildCartItemsHtml(
-      checkout.line_items.map((item) => ({
+      enrichedItems.map((item) => ({
         title: item.title,
         quantity: item.quantity,
         price: item.price,

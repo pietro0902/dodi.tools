@@ -104,6 +104,18 @@ export async function getProductInfo(productId: number): Promise<{ imageUrl: str
   return { imageUrl, productUrl };
 }
 
+export async function enrichCheckoutLineItemImages(
+  lineItems: AbandonedCheckout["line_items"]
+): Promise<AbandonedCheckout["line_items"]> {
+  return Promise.all(
+    lineItems.map(async (item) => {
+      if (item.image?.src || !item.product_id) return item;
+      const { imageUrl } = await getProductInfo(item.product_id).catch(() => ({ imageUrl: null, productUrl: null }));
+      return imageUrl ? { ...item, image: { src: imageUrl } } : item;
+    })
+  );
+}
+
 export async function getFirstGiftCardProductImage(): Promise<{ imageUrl: string; title: string; productUrl: string } | null> {
   const data = await graphqlQuery<{
     products: { edges: Array<{ node: { title: string; handle: string; featuredImage: { url: string } | null } }> };
