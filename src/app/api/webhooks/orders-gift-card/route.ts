@@ -5,6 +5,7 @@ import { getResendClient } from "@/lib/resend";
 import { getAutomationSettings } from "@/lib/automation-settings";
 import { blocksToHtml } from "@/lib/email-blocks";
 import { logActivity } from "@/lib/activity-log";
+import { markGiftCardOrderSent } from "@/lib/sent-gift-cards";
 import CampaignEmail from "@/emails/campaign";
 import type { OrderWebhookPayload } from "@/types/shopify";
 
@@ -107,6 +108,10 @@ export async function POST(request: NextRequest) {
         textColor: gc.textColor,
       }),
     });
+
+    try {
+      await markGiftCardOrderSent(order.id);
+    } catch (_) {}
 
     try {
       await logActivity({

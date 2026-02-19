@@ -3,6 +3,7 @@ import { getResendClient } from "@/lib/resend";
 import { getAutomationSettings } from "@/lib/automation-settings";
 import { blocksToHtml } from "@/lib/email-blocks";
 import { logActivity } from "@/lib/activity-log";
+import { markGiftCardOrderSent } from "@/lib/sent-gift-cards";
 import CampaignEmail from "@/emails/campaign";
 
 export async function POST(request: Request) {
@@ -51,6 +52,12 @@ export async function POST(request: Request) {
         textColor: gc.textColor,
       }),
     });
+
+    if (orderId) {
+      try {
+        await markGiftCardOrderSent(Number(orderId));
+      } catch (_) {}
+    }
 
     try {
       await logActivity({

@@ -268,6 +268,9 @@ export default function GiftCardAutomationPage() {
       const res = await fetch("/api/gift-card-orders");
       const data = await res.json();
       setGcOrders(data.orders || []);
+      if (Array.isArray(data.sentOrderIds)) {
+        setSentOrderIds(new Set(data.sentOrderIds as number[]));
+      }
     } catch {
       setGcOrders([]);
     } finally {
@@ -289,7 +292,7 @@ export default function GiftCardAutomationPage() {
           email: order.email,
           firstName: order.customer?.first_name || "Cliente",
           amount: order.line_items[0]?.price || "0",
-          orderId: order.order_number,
+          orderId: order.id,
         }),
       });
       if (res.ok) {

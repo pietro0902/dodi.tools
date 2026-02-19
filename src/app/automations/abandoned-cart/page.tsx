@@ -527,6 +527,56 @@ export default function AbandonedCartAutomationPage() {
     return app.idToken();
   }, [app]);
 
+  // --- Test send ---
+  const [testCheckouts, setTestCheckouts] = useState<import("@/types/shopify").AbandonedCheckout[]>([]);
+  const [testCheckoutsLoading, setTestCheckoutsLoading] = useState(false);
+  const [selectedCheckoutId, setSelectedCheckoutId] = useState<number | null>(null);
+  const [testEmail, setTestEmail] = useState("");
+  const [testSending, setTestSending] = useState(false);
+  const [testSent, setTestSent] = useState(false);
+  const [testError, setTestError] = useState("");
+
+  const loadTestCheckouts = useCallback(async () => {
+    setTestCheckoutsLoading(true);
+    try {
+      const res = await fetch("/api/abandoned-cart-test");
+      const data = await res.json();
+      setTestCheckouts(data.checkouts || []);
+    } catch {
+      setTestCheckouts([]);
+    } finally {
+      setTestCheckoutsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadTestCheckouts();
+  }, [loadTestCheckouts]);
+
+  const handleTestSend = useCallback(async () => {
+    if (!testEmail || !selectedCheckoutId) return;
+    setTestSending(true);
+    setTestSent(false);
+    setTestError("");
+    try {
+      const res = await fetch("/api/abandoned-cart-test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: testEmail, checkoutId: selectedCheckoutId }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setTestSent(true);
+      } else {
+        setTestError(data.error || "Errore nell'invio");
+      }
+    } catch {
+      setTestError("Errore nell'invio");
+    } finally {
+      setTestSending(false);
+    }
+  }, [testEmail, selectedCheckoutId]);
+
   // --- Render ---
   if (loading) {
     return (
@@ -727,6 +777,92 @@ export default function AbandonedCartAutomationPage() {
                   <p>Aggiungi dei blocchi per vedere l&apos;anteprima.</p>
                 </Banner>
               )}
+            </BlockStack>
+          </Card>
+        </Layout.Section>
+
+        {/* Test send */}
+        <Layout.Section>
+          <Card>
+            <BlockStack gap="400">
+              <InlineStack align="space-between" blockAlign="center">
+                <Text as="h2" variant="headingMd">Invia email di test</Text>
+                <Button size="slim" onClick={loadTestCheckouts} loading={testCheckoutsLoading}>Aggiorna</Button>
+              </InlineStack>
+              <Text as="p" variant="bodySm" tone="subdued">
+                Seleziona uno dei carrelli abbandonati recenti, inserisci la tua email e invia una copia di prova con i dati reali del carrello.
+              </Text>
+
+              {/* Checkout list */}
+              {testCheckoutsLoading ? (
+                <InlineStack align="center"><Spinner size="small" /></InlineStack>
+              ) : testCheckouts.length === 0 ? (
+                <Banner tone="info"><p>Nessun carrello abbandonato trovato.</p></Banner>
+              ) : (
+                <BlockStack gap="200">
+                  {testCheckouts.map((checkout) => {
+                    const isSelected = selectedCheckoutId === checkout.id;
+                    const name = `${checkout.customer?.first_name || ""} ${checkout.customer?.last_name || ""}`.trim() || "—";
+                    const itemCount = checkout.line_items.length;
+                    const date = new Date(checkout.created_at).toLocaleDateString("it-IT", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+                    return (
+                      <div
+                        key={checkout.id}
+                        onClick={() => { setSelectedCheckoutId(isSelected ? null : checkout.id); setTestSent(false); setTestError(""); }}
+                        style={{
+                          padding: "12px",
+                          border: isSelected ? "2px solid #2c6ecb" : "1px solid #e5e7eb",
+                          borderRadius: "8px",
+                          cursor: "pointer",
+                          backgroundColor: isSelected ? "#f0f5ff" : "transparent",
+                        }}
+                      >
+                        <InlineStack align="space-between" blockAlign="center" wrap={false}>
+                          <BlockStack gap="100">
+                            <InlineStack gap="200" blockAlign="center">
+                              <Text as="span" variant="bodyMd" fontWeight="semibold">{name}</Text>
+                              <Text as="span" variant="bodySm" tone="subdued">{checkout.email}</Text>
+                            </InlineStack>
+                            <Text as="span" variant="bodySm" tone="subdued">
+                              {itemCount} prodott{itemCount === 1 ? "o" : "i"} · €{parseFloat(checkout.total_price).toFixed(2)} · {date}
+                            </Text>
+                          </BlockStack>
+                          {isSelected && <Badge tone="info">Selezionato</Badge>}
+                        </InlineStack>
+                      </div>
+                    );
+                  })}
+                </BlockStack>
+              )}
+
+              {/* Email input + send button */}
+              <InlineStack gap="300" blockAlign="end" wrap={false}>
+                <div style={{ flex: 1 }}>
+                  <TextField
+                    label="La tua email di test"
+                    value={testEmail}
+                    onChange={(v) => { setTestEmail(v); setTestSent(false); setTestError(""); }}
+                    autoComplete="email"
+                    type="email"
+                    placeholder="tua@email.com"
+                  />
+                </div>
+                <Box paddingBlockStart="600">
+                  <Button
+                    variant="primary"
+                    onClick={handleTestSend}
+                    loading={testSending}
+                    disabled={!testEmail || !selectedCheckoutId}
+                  >
+                    Invia test
+                  </Button>
+                </Box>
+              </InlineStack>
+              {!selectedCheckoutId && testEmail && (
+                <Text as="p" variant="bodySm" tone="caution">Seleziona un carrello dalla lista per procedere.</Text>
+              )}
+              {testSent && <Banner tone="success"><p>Email di test inviata a {testEmail}!</p></Banner>}
+              {testError && <Banner tone="critical"><p>{testError}</p></Banner>}
             </BlockStack>
           </Card>
         </Layout.Section>
