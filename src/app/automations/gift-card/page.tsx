@@ -301,14 +301,14 @@ export default function GiftCardAutomationPage() {
   }, []);
 
   const handleTestSend = useCallback(async () => {
-    if (!testEmail || !testName || !testAmount) return;
+    if (!testEmail || !testAmount) return;
     setTestSending(true);
     setTestSent(false);
     try {
       const res = await fetch("/api/gift-card-send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: testEmail, firstName: testName, amount: testAmount }),
+        body: JSON.stringify({ email: testEmail, firstName: "Cliente", amount: testAmount }),
       });
       if (res.ok) setTestSent(true);
     } finally {
@@ -756,7 +756,7 @@ export default function GiftCardAutomationPage() {
                       <TextField label="Importo (€)" value={testAmount} onChange={(v) => { setTestAmount(v); setTestSent(false); }} autoComplete="off" type="number" />
                     </Box>
                     <Box paddingBlockStart="600">
-                      <Button onClick={handleTestSend} loading={testSending} disabled={!testEmail || !testName || !testAmount}>
+                      <Button onClick={handleTestSend} loading={testSending} disabled={!testEmail || !testAmount}>
                         Invia test
                       </Button>
                     </Box>
