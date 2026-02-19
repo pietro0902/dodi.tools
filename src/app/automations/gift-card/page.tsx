@@ -746,15 +746,18 @@ export default function GiftCardAutomationPage() {
               <Box borderColor="border" borderWidth="025" borderRadius="200" padding="400">
                 <BlockStack gap="300">
                   <Text as="h3" variant="headingSm">Invia email di test</Text>
+                  <Text as="p" variant="bodySm" tone="subdued">
+                    Seleziona un ordine dalla lista qui sotto per precompilare nome e importo, poi inserisci la tua email e invia.
+                  </Text>
                   <InlineStack gap="300" wrap>
-                    <Box minWidth="180px">
-                      <TextField label="Email" value={testEmail} onChange={setTestEmail} autoComplete="email" type="email" />
+                    <Box minWidth="200px">
+                      <TextField label="La tua email di test" value={testEmail} onChange={(v) => { setTestEmail(v); setTestSent(false); }} autoComplete="email" type="email" />
                     </Box>
                     <Box minWidth="140px">
-                      <TextField label="Nome" value={testName} onChange={setTestName} autoComplete="off" />
+                      <TextField label="Nome" value={testName} onChange={(v) => { setTestName(v); setTestSent(false); }} autoComplete="off" />
                     </Box>
                     <Box minWidth="100px">
-                      <TextField label="Importo (€)" value={testAmount} onChange={setTestAmount} autoComplete="off" type="number" />
+                      <TextField label="Importo (€)" value={testAmount} onChange={(v) => { setTestAmount(v); setTestSent(false); }} autoComplete="off" type="number" />
                     </Box>
                     <Box paddingBlockStart="600">
                       <Button onClick={handleTestSend} loading={testSending} disabled={!testEmail || !testName || !testAmount}>
@@ -767,7 +770,7 @@ export default function GiftCardAutomationPage() {
               </Box>
 
               <Text as="p" variant="bodySm" tone="subdued">
-                Lista degli ordini contenenti solo gift card. Puoi reinviare l&apos;email a chi non l&apos;ha ricevuta.
+                Clicca &quot;Usa dati&quot; su un ordine per precompilare il form sopra, poi invia alla tua email.
               </Text>
               {gcOrdersLoading ? (
                 <InlineStack align="center"><Spinner size="small" /></InlineStack>
@@ -775,13 +778,24 @@ export default function GiftCardAutomationPage() {
                 <Banner tone="info"><p>Nessun ordine gift card trovato.</p></Banner>
               ) : (
                 <DataTable
-                  columnContentTypes={["text", "text", "text", "text", "text"]}
-                  headings={["Ordine", "Cliente", "Email", "Importo", "Azione"]}
+                  columnContentTypes={["text", "text", "text", "text", "text", "text"]}
+                  headings={["Ordine", "Cliente", "Email", "Importo", "Test", "Invia reale"]}
                   rows={gcOrders.map((order) => [
                     `#${order.order_number}`,
                     `${order.customer?.first_name || ""} ${order.customer?.last_name || ""}`.trim() || "—",
                     order.email,
                     `€${parseFloat(order.total_price).toFixed(2)}`,
+                    <Button
+                      size="slim"
+                      variant="plain"
+                      onClick={() => {
+                        setTestName(order.customer?.first_name || "Cliente");
+                        setTestAmount(order.line_items[0]?.price || order.total_price);
+                        setTestSent(false);
+                      }}
+                    >
+                      Usa dati
+                    </Button>,
                     sentOrderIds.has(order.id) ? (
                       <Badge tone="success">Inviata</Badge>
                     ) : (
