@@ -156,6 +156,13 @@ export default function GiftCardAutomationPage() {
   const [sendingOrderId, setSendingOrderId] = useState<number | null>(null);
   const [sentOrderIds, setSentOrderIds] = useState<Set<number>>(new Set());
 
+  // Test send
+  const [testEmail, setTestEmail] = useState("");
+  const [testName, setTestName] = useState("");
+  const [testAmount, setTestAmount] = useState("50");
+  const [testSending, setTestSending] = useState(false);
+  const [testSent, setTestSent] = useState(false);
+
   const [importOpen, setImportOpen] = useState(false);
   const [allTemplates, setAllTemplates] = useState<TemplateOption[]>([]);
 
@@ -293,6 +300,22 @@ export default function GiftCardAutomationPage() {
       setSendingOrderId(null);
     }
   }, []);
+
+  const handleTestSend = useCallback(async () => {
+    if (!testEmail || !testName || !testAmount) return;
+    setTestSending(true);
+    setTestSent(false);
+    try {
+      const res = await fetch("/api/gift-card-send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: testEmail, firstName: testName, amount: testAmount }),
+      });
+      if (res.ok) setTestSent(true);
+    } finally {
+      setTestSending(false);
+    }
+  }, [testEmail, testName, testAmount]);
 
   const previewInputs = useMemo(
     () => ({ blocks, bgColor, btnColor, containerColor, textColor, subject, preheader, giftCardImageUrl, giftCardProductUrl }),
@@ -719,6 +742,30 @@ export default function GiftCardAutomationPage() {
                 <Text as="h2" variant="headingMd">Invia manualmente</Text>
                 <Button size="slim" onClick={loadGcOrders} loading={gcOrdersLoading}>Aggiorna</Button>
               </InlineStack>
+              {/* Test send form */}
+              <Box borderColor="border" borderWidth="025" borderRadius="200" padding="400">
+                <BlockStack gap="300">
+                  <Text as="h3" variant="headingSm">Invia email di test</Text>
+                  <InlineStack gap="300" wrap>
+                    <Box minWidth="180px">
+                      <TextField label="Email" value={testEmail} onChange={setTestEmail} autoComplete="email" type="email" />
+                    </Box>
+                    <Box minWidth="140px">
+                      <TextField label="Nome" value={testName} onChange={setTestName} autoComplete="off" />
+                    </Box>
+                    <Box minWidth="100px">
+                      <TextField label="Importo (€)" value={testAmount} onChange={setTestAmount} autoComplete="off" type="number" />
+                    </Box>
+                    <Box paddingBlockStart="600">
+                      <Button onClick={handleTestSend} loading={testSending} disabled={!testEmail || !testName || !testAmount}>
+                        Invia test
+                      </Button>
+                    </Box>
+                  </InlineStack>
+                  {testSent && <Banner tone="success"><p>Email di test inviata a {testEmail}!</p></Banner>}
+                </BlockStack>
+              </Box>
+
               <Text as="p" variant="bodySm" tone="subdued">
                 Lista degli ordini contenenti solo gift card. Puoi reinviare l&apos;email a chi non l&apos;ha ricevuta.
               </Text>
