@@ -74,8 +74,8 @@ export async function GET(request: NextRequest) {
     // Build SVG with only the text overlay (transparent background)
     const textSvg = `<?xml version="1.0" encoding="UTF-8"?>
 <svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">
-  <text x="${NAME_X}" y="${NAME_Y}" font-family="Inter" font-size="${FONT_SIZE}" font-weight="900" fill="#000000">${name}</text>
-  <text x="${AMOUNT_X}" y="${AMOUNT_Y}" font-family="Inter" font-size="${FONT_SIZE}" font-weight="900" fill="#000000">&#8364;${amount}</text>
+  <text x="${NAME_X}" y="${NAME_Y}" font-family="Inter" font-size="${FONT_SIZE}" font-weight="900" fill="#000000" stroke="#000000" stroke-width="1.5" paint-order="stroke">${name}</text>
+  <text x="${AMOUNT_X}" y="${AMOUNT_Y}" font-family="Inter" font-size="${FONT_SIZE}" font-weight="900" fill="#000000" stroke="#000000" stroke-width="1.5" paint-order="stroke">&#8364;${amount}</text>
 </svg>`;
 
     // Convert text SVG → PNG with resvg-wasm, passing the TTF font directly
