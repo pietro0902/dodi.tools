@@ -5,12 +5,23 @@ interface CartLineItem {
   variantTitle?: string | null;
 }
 
+interface CartColors {
+  textColor?: string;
+  btnColor?: string;
+  btnTextColor?: string;
+}
+
 export function buildCartItemsHtml(
   lineItems: CartLineItem[],
   totalPrice: string,
   currency: string,
-  checkoutUrl: string
+  checkoutUrl: string,
+  colors: CartColors = {}
 ): string {
+  const textColor = colors.textColor || "#374151";
+  const btnColor = colors.btnColor || "#111827";
+  const btnTextColor = colors.btnTextColor || "#ffffff";
+
   const formatPrice = (amount: string) => {
     const num = parseFloat(amount);
     if (currency === "EUR") return `\u20AC${num.toFixed(2)}`;
@@ -21,10 +32,10 @@ export function buildCartItemsHtml(
     .map((item) => {
       const variant = item.variantTitle ? ` — ${item.variantTitle}` : "";
       return `<tr>
-        <td style="padding:8px 0;border-bottom:1px solid #f3f4f6;font-size:14px;color:#374151">
+        <td style="padding:8px 0;border-bottom:1px solid #f3f4f6;font-size:14px;color:${textColor}">
           ${escapeHtml(item.title)}${escapeHtml(variant)} &times; ${item.quantity}
         </td>
-        <td style="padding:8px 0;border-bottom:1px solid #f3f4f6;font-size:14px;color:#374151;text-align:right;white-space:nowrap">
+        <td style="padding:8px 0;border-bottom:1px solid #f3f4f6;font-size:14px;color:${textColor};text-align:right;white-space:nowrap">
           ${formatPrice(item.price)}
         </td>
       </tr>`;
@@ -35,16 +46,16 @@ export function buildCartItemsHtml(
 <table width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0">
   ${itemRows}
   <tr>
-    <td style="padding:12px 0 0;font-size:16px;font-weight:bold;color:#111827">
+    <td style="padding:12px 0 0;font-size:16px;font-weight:bold;color:${textColor}">
       Totale
     </td>
-    <td style="padding:12px 0 0;font-size:16px;font-weight:bold;color:#111827;text-align:right">
+    <td style="padding:12px 0 0;font-size:16px;font-weight:bold;color:${textColor};text-align:right">
       ${formatPrice(totalPrice)}
     </td>
   </tr>
 </table>
 <div style="text-align:center;margin:24px 0">
-  <a href="${escapeHtml(checkoutUrl)}" style="display:inline-block;background-color:#111827;color:#ffffff;font-size:16px;font-weight:600;text-decoration:none;padding:12px 32px;border-radius:6px">
+  <a href="${escapeHtml(checkoutUrl)}" style="display:inline-block;background-color:${btnColor};color:${btnTextColor};font-size:16px;font-weight:600;text-decoration:none;padding:12px 32px;border-radius:6px">
     Completa l&#8217;acquisto
   </a>
 </div>`;

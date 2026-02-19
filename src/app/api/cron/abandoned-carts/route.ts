@@ -61,6 +61,13 @@ export async function POST(request: Request) {
       const firstName = checkout.customer?.first_name || "Cliente";
       const replace = (s: string) => s.replace(/\{\{name\}\}/g, firstName);
 
+      const cartBlock = ac.blocks?.find((b) => b.type === "cart_items");
+      const cartColors = cartBlock?.type === "cart_items" ? {
+        textColor: cartBlock.textColor,
+        btnColor: cartBlock.btnColor,
+        btnTextColor: cartBlock.btnTextColor,
+      } : {};
+
       const cartHtml = buildCartItemsHtml(
         checkout.line_items.map((item) => ({
           title: item.title,
@@ -70,7 +77,8 @@ export async function POST(request: Request) {
         })),
         checkout.total_price,
         checkout.currency,
-        checkout.abandoned_checkout_url
+        checkout.abandoned_checkout_url,
+        cartColors
       );
 
       const subject = replace(ac.subject);

@@ -416,24 +416,64 @@ export function BlockEditor({
             )}
 
             {block.type === "cart_items" && (
-              <BlockStack gap="200">
+              <BlockStack gap="300">
                 <Text as="p" variant="bodySm" tone="subdued">
                   I prodotti nel carrello del cliente vengono inseriti automaticamente in questa posizione.
                 </Text>
                 <div style={{ border: "1px solid #e5e7eb", borderRadius: "6px", padding: "12px", backgroundColor: "#f9fafb" }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", color: "#374151" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", color: block.textColor || "#374151" }}>
                     <tbody>
                       <tr>
-                        <td style={{ padding: "6px 0", borderBottom: "1px solid #f3f4f6" }}>Prodotto esempio × 1</td>
-                        <td style={{ padding: "6px 0", borderBottom: "1px solid #f3f4f6", textAlign: "right" }}>€29,99</td>
+                        <td style={{ padding: "6px 0", borderBottom: "1px solid #f3f4f6", color: block.textColor || "#374151" }}>Prodotto esempio × 1</td>
+                        <td style={{ padding: "6px 0", borderBottom: "1px solid #f3f4f6", textAlign: "right", color: block.textColor || "#374151" }}>€29,99</td>
                       </tr>
                       <tr>
-                        <td style={{ padding: "8px 0 0", fontWeight: 600 }}>Totale</td>
-                        <td style={{ padding: "8px 0 0", fontWeight: 600, textAlign: "right" }}>€29,99</td>
+                        <td style={{ padding: "8px 0 0", fontWeight: 600, color: block.textColor || "#374151" }}>Totale</td>
+                        <td style={{ padding: "8px 0 0", fontWeight: 600, textAlign: "right", color: block.textColor || "#374151" }}>€29,99</td>
                       </tr>
                     </tbody>
                   </table>
+                  <div style={{ textAlign: "center", marginTop: "12px" }}>
+                    <span style={{ display: "inline-block", backgroundColor: block.btnColor || "#111827", color: block.btnTextColor || "#ffffff", fontSize: "13px", fontWeight: 600, padding: "8px 20px", borderRadius: "6px" }}>
+                      Completa l&apos;acquisto
+                    </span>
+                  </div>
                 </div>
+                <InlineStack gap="300" wrap>
+                  <BlockStack gap="100">
+                    <Text as="span" variant="bodySm">Colore testo</Text>
+                    <InlineStack gap="200" blockAlign="center">
+                      <div style={{ width: "28px", height: "28px", borderRadius: "4px", backgroundColor: block.textColor || "#374151", border: "1px solid #d1d5db", position: "relative", overflow: "hidden", flexShrink: 0 }}>
+                        <input type="color" value={block.textColor || "#374151"} onChange={(e) => updateBlock(block.id, { textColor: e.target.value })} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0, cursor: "pointer" }} />
+                      </div>
+                      <div style={{ width: "90px" }}>
+                        <TextField label="" labelHidden value={block.textColor || "#374151"} onChange={(v) => updateBlock(block.id, { textColor: v })} autoComplete="off" monospaced />
+                      </div>
+                    </InlineStack>
+                  </BlockStack>
+                  <BlockStack gap="100">
+                    <Text as="span" variant="bodySm">Colore bottone</Text>
+                    <InlineStack gap="200" blockAlign="center">
+                      <div style={{ width: "28px", height: "28px", borderRadius: "4px", backgroundColor: block.btnColor || "#111827", border: "1px solid #d1d5db", position: "relative", overflow: "hidden", flexShrink: 0 }}>
+                        <input type="color" value={block.btnColor || "#111827"} onChange={(e) => updateBlock(block.id, { btnColor: e.target.value })} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0, cursor: "pointer" }} />
+                      </div>
+                      <div style={{ width: "90px" }}>
+                        <TextField label="" labelHidden value={block.btnColor || "#111827"} onChange={(v) => updateBlock(block.id, { btnColor: v })} autoComplete="off" monospaced />
+                      </div>
+                    </InlineStack>
+                  </BlockStack>
+                  <BlockStack gap="100">
+                    <Text as="span" variant="bodySm">Testo bottone</Text>
+                    <InlineStack gap="200" blockAlign="center">
+                      <div style={{ width: "28px", height: "28px", borderRadius: "4px", backgroundColor: block.btnTextColor || "#ffffff", border: "1px solid #d1d5db", position: "relative", overflow: "hidden", flexShrink: 0 }}>
+                        <input type="color" value={block.btnTextColor || "#ffffff"} onChange={(e) => updateBlock(block.id, { btnTextColor: e.target.value })} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0, cursor: "pointer" }} />
+                      </div>
+                      <div style={{ width: "90px" }}>
+                        <TextField label="" labelHidden value={block.btnTextColor || "#ffffff"} onChange={(v) => updateBlock(block.id, { btnTextColor: v })} autoComplete="off" monospaced />
+                      </div>
+                    </InlineStack>
+                  </BlockStack>
+                </InlineStack>
               </BlockStack>
             )}
 

@@ -56,6 +56,9 @@ export interface GiftCardImageBlock {
 export interface CartItemsBlock {
   id: string;
   type: "cart_items";
+  textColor?: string;
+  btnColor?: string;
+  btnTextColor?: string;
 }
 
 export type EmailBlock =
@@ -94,7 +97,7 @@ export function createDefaultBlock(type: EmailBlockType): EmailBlock {
     case "gift_card_image":
       return { id, type: "gift_card_image", buttonText: "Scarica l'immagine" };
     case "cart_items":
-      return { id, type: "cart_items" };
+      return { id, type: "cart_items", textColor: "#374151", btnColor: "#111827", btnTextColor: "#ffffff" };
   }
 }
 
