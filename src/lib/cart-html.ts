@@ -29,32 +29,53 @@ export function buildCartItemsHtml(
     return `${num.toFixed(2)} ${currency}`;
   };
 
-  const itemRows = lineItems
-    .map((item) => {
-      const variant = item.variantTitle ? ` — ${item.variantTitle}` : "";
-      const imgCell = item.imageUrl
-        ? `<td style="padding:8px 12px 8px 0;border-bottom:1px solid #f3f4f6;width:64px;vertical-align:middle">
-            <img src="${escapeHtml(item.imageUrl)}" alt="${escapeHtml(item.title)}" width="56" height="56" style="display:block;border-radius:6px;object-fit:cover;width:56px;height:56px" />
-          </td>`
+  // Group items into rows of up to 3
+  const rows: CartLineItem[][] = [];
+  for (let i = 0; i < lineItems.length; i += 3) {
+    rows.push(lineItems.slice(i, i + 3));
+  }
+
+  const cardWidth = lineItems.length === 1 ? "100%" : lineItems.length === 2 ? "48%" : "31%";
+
+  const rowsHtml = rows
+    .map((row) => {
+      const cells = row
+        .map((item) => {
+          const variant = item.variantTitle ? item.variantTitle : null;
+          const imgHtml = item.imageUrl
+            ? `<img src="${escapeHtml(item.imageUrl)}" alt="${escapeHtml(item.title)}" width="200" style="display:block;width:100%;height:180px;object-fit:cover;border-radius:8px 8px 0 0" />`
+            : `<div style="width:100%;height:180px;background:#f3f4f6;border-radius:8px 8px 0 0;display:block"></div>`;
+
+          return `<td style="width:${cardWidth};vertical-align:top;padding:0 6px">
+  <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;margin-bottom:12px">
+    <tr><td style="padding:0;line-height:0">${imgHtml}</td></tr>
+    <tr>
+      <td style="padding:12px;font-size:14px;color:${textColor}">
+        <div style="font-weight:700;font-size:14px;color:${textColor};margin-bottom:4px;line-height:1.3">${escapeHtml(item.title)}</div>
+        ${variant ? `<div style="font-size:13px;color:#9ca3af;margin-bottom:4px">${escapeHtml(variant)}</div>` : ""}
+        <div style="font-size:13px;color:#6b7280;margin-bottom:6px">Qtà: ${item.quantity}</div>
+        <div style="font-size:16px;font-weight:700;color:${textColor}">${formatPrice(item.price)}</div>
+      </td>
+    </tr>
+  </table>
+</td>`;
+        })
+        .join("\n");
+
+      // Pad with empty cells if row has fewer than 3 items and there are multiple items
+      const emptyCells = lineItems.length > 1
+        ? Array(3 - row.length).fill(`<td style="width:${cardWidth};padding:0 6px"></td>`).join("")
         : "";
-      return `<tr>
-        ${imgCell}
-        <td style="padding:8px 0;border-bottom:1px solid #f3f4f6;font-size:14px;color:${textColor};vertical-align:middle">
-          <strong>${escapeHtml(item.title)}</strong>${variant ? `<br/><span style="color:#9ca3af;font-size:13px">${escapeHtml(variant)}</span>` : ""}
-          <br/><span style="color:#6b7280;font-size:13px">Qtà: ${item.quantity}</span>
-        </td>
-        <td style="padding:8px 0;border-bottom:1px solid #f3f4f6;font-size:14px;color:${textColor};text-align:right;vertical-align:middle;white-space:nowrap">
-          ${formatPrice(item.price)}
-        </td>
-      </tr>`;
+
+      return `<tr>${cells}${emptyCells}</tr>`;
     })
     .join("\n");
 
   return `
-<table width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0">
-  ${itemRows}
+<table width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0;border-collapse:collapse">
+  ${rowsHtml}
   <tr>
-    <td colspan="3" style="padding:12px 0 0;font-size:16px;font-weight:bold;color:${textColor};text-align:right">
+    <td colspan="3" style="padding:12px 6px 0;font-size:16px;font-weight:bold;color:${textColor};text-align:right;border-top:1px solid #e5e7eb">
       Totale: ${formatPrice(totalPrice)}
     </td>
   </tr>

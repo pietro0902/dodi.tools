@@ -272,8 +272,11 @@ export default function AbandonedCartAutomationPage() {
         btnTextColor: cartBlock.btnTextColor,
       } : {};
       const sampleCartHtml = buildCartItemsHtml(
-        [{ title: "Prodotto esempio", quantity: 1, price: "29.99", variantTitle: "Taglia M", imageUrl: "https://placehold.co/56x56/e5e7eb/9ca3af?text=IMG" }],
-        "29.99",
+        [
+          { title: "Prodotto esempio", quantity: 1, price: "29.99", variantTitle: "Taglia M", imageUrl: "https://placehold.co/400x300/e5e7eb/9ca3af?text=Prodotto+1" },
+          { title: "Secondo prodotto", quantity: 2, price: "49.99", variantTitle: "Blu", imageUrl: "https://placehold.co/400x300/dbeafe/3b82f6?text=Prodotto+2" },
+        ],
+        "79.98",
         "EUR",
         "#",
         cartColors
