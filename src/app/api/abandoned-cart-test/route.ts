@@ -94,7 +94,7 @@ export async function POST(request: Request) {
 
     try {
       await logActivity({
-        type: "abandoned_cart_test",
+        type: "abandoned_cart_batch",
         summary: `Email test carrello abbandonato inviata a ${email} (checkout #${checkoutId})`,
         details: { customerEmail: email },
       });
