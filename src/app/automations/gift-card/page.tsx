@@ -18,7 +18,6 @@ import {
   Checkbox,
   Thumbnail,
   Badge,
-  DataTable,
 } from "@shopify/polaris";
 import type { GiftCardOrder } from "@/lib/shopify";
 import { useRouter } from "next/navigation";
@@ -189,7 +188,7 @@ export default function GiftCardAutomationPage() {
   const [giftCardProductUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    setGiftCardImageUrl(`${window.location.origin}/api/gift-card-image?name=Maria&amount=50`);
+    setGiftCardImageUrl(`${window.location.origin}/api/gift-card-image?amount=50`);
   }, []);
 
   const fetchData = useCallback(async () => {
@@ -777,38 +776,46 @@ export default function GiftCardAutomationPage() {
               ) : gcOrders.length === 0 ? (
                 <Banner tone="info"><p>Nessun ordine gift card trovato.</p></Banner>
               ) : (
-                <DataTable
-                  columnContentTypes={["text", "text", "text", "text", "text", "text"]}
-                  headings={["Ordine", "Cliente", "Email", "Importo", "Test", "Invia reale"]}
-                  rows={gcOrders.map((order) => [
-                    `#${order.order_number}`,
-                    `${order.customer?.first_name || ""} ${order.customer?.last_name || ""}`.trim() || "—",
-                    order.email,
-                    `€${parseFloat(order.total_price).toFixed(2)}`,
-                    <Button
-                      size="slim"
-                      variant="plain"
-                      onClick={() => {
-                        setTestName(order.customer?.first_name || "Cliente");
-                        setTestAmount(order.line_items[0]?.price || order.total_price);
-                        setTestSent(false);
-                      }}
-                    >
-                      Usa dati
-                    </Button>,
-                    sentOrderIds.has(order.id) ? (
-                      <Badge tone="success">Inviata</Badge>
-                    ) : (
-                      <Button
-                        size="slim"
-                        loading={sendingOrderId === order.id}
-                        onClick={() => handleManualSend(order)}
-                      >
-                        Invia email
-                      </Button>
-                    ),
-                  ])}
-                />
+                <BlockStack gap="200">
+                  {gcOrders.map((order) => (
+                    <Box key={order.id} borderColor="border" borderWidth="025" borderRadius="200" padding="300">
+                      <InlineStack align="space-between" blockAlign="center" wrap={false}>
+                        <BlockStack gap="100">
+                          <InlineStack gap="200" blockAlign="center">
+                            <Text as="span" variant="bodyMd" fontWeight="semibold">#{order.order_number}</Text>
+                            <Text as="span" variant="bodyMd">{`${order.customer?.first_name || ""} ${order.customer?.last_name || ""}`.trim() || "—"}</Text>
+                            <Text as="span" variant="bodyMd" tone="subdued">{order.email}</Text>
+                          </InlineStack>
+                          <Text as="span" variant="bodyMd">€{parseFloat(order.total_price).toFixed(2)}</Text>
+                        </BlockStack>
+                        <InlineStack gap="200">
+                          <Button
+                            size="slim"
+                            onClick={() => {
+                              setTestName(order.customer?.first_name || "Cliente");
+                              setTestAmount(order.line_items[0]?.price || order.total_price);
+                              setTestSent(false);
+                            }}
+                          >
+                            Usa per test
+                          </Button>
+                          {sentOrderIds.has(order.id) ? (
+                            <Badge tone="success">Inviata</Badge>
+                          ) : (
+                            <Button
+                              size="slim"
+                              variant="primary"
+                              loading={sendingOrderId === order.id}
+                              onClick={() => handleManualSend(order)}
+                            >
+                              Invia reale
+                            </Button>
+                          )}
+                        </InlineStack>
+                      </InlineStack>
+                    </Box>
+                  ))}
+                </BlockStack>
               )}
             </BlockStack>
           </Card>
