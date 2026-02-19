@@ -17,7 +17,10 @@ import {
   Select,
   Checkbox,
   Thumbnail,
+  Badge,
+  DataTable,
 } from "@shopify/polaris";
+import type { GiftCardOrder } from "@/lib/shopify";
 import { useRouter } from "next/navigation";
 import type { AutomationSettings } from "@/lib/automation-settings";
 import type { EmailBlock } from "@/lib/email-blocks";
@@ -147,6 +150,12 @@ export default function GiftCardAutomationPage() {
   const [containerColor, setContainerColor] = useState("#ffffff");
   const [textColor, setTextColor] = useState("#374151");
 
+  // Manual resend
+  const [gcOrders, setGcOrders] = useState<GiftCardOrder[]>([]);
+  const [gcOrdersLoading, setGcOrdersLoading] = useState(false);
+  const [sendingOrderId, setSendingOrderId] = useState<number | null>(null);
+  const [sentOrderIds, setSentOrderIds] = useState<Set<number>>(new Set());
+
   const [importOpen, setImportOpen] = useState(false);
   const [allTemplates, setAllTemplates] = useState<TemplateOption[]>([]);
 
@@ -246,6 +255,44 @@ export default function GiftCardAutomationPage() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  const loadGcOrders = useCallback(async () => {
+    setGcOrdersLoading(true);
+    try {
+      const res = await fetch("/api/gift-card-orders");
+      const data = await res.json();
+      setGcOrders(data.orders || []);
+    } catch {
+      setGcOrders([]);
+    } finally {
+      setGcOrdersLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadGcOrders();
+  }, [loadGcOrders]);
+
+  const handleManualSend = useCallback(async (order: GiftCardOrder) => {
+    setSendingOrderId(order.id);
+    try {
+      const res = await fetch("/api/gift-card-send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: order.email,
+          firstName: order.customer?.first_name || "Cliente",
+          amount: order.line_items[0]?.price || "0",
+          orderId: order.order_number,
+        }),
+      });
+      if (res.ok) {
+        setSentOrderIds((prev) => new Set(prev).add(order.id));
+      }
+    } finally {
+      setSendingOrderId(null);
+    }
+  }, []);
 
   const previewInputs = useMemo(
     () => ({ blocks, bgColor, btnColor, containerColor, textColor, subject, preheader, giftCardImageUrl, giftCardProductUrl }),
@@ -660,6 +707,47 @@ export default function GiftCardAutomationPage() {
                 <Banner tone="info">
                   <p>Aggiungi dei blocchi per vedere l&apos;anteprima.</p>
                 </Banner>
+              )}
+            </BlockStack>
+          </Card>
+        </Layout.Section>
+        {/* Manual resend */}
+        <Layout.Section>
+          <Card>
+            <BlockStack gap="400">
+              <InlineStack align="space-between" blockAlign="center">
+                <Text as="h2" variant="headingMd">Invia manualmente</Text>
+                <Button size="slim" onClick={loadGcOrders} loading={gcOrdersLoading}>Aggiorna</Button>
+              </InlineStack>
+              <Text as="p" variant="bodySm" tone="subdued">
+                Lista degli ordini contenenti solo gift card. Puoi reinviare l&apos;email a chi non l&apos;ha ricevuta.
+              </Text>
+              {gcOrdersLoading ? (
+                <InlineStack align="center"><Spinner size="small" /></InlineStack>
+              ) : gcOrders.length === 0 ? (
+                <Banner tone="info"><p>Nessun ordine gift card trovato.</p></Banner>
+              ) : (
+                <DataTable
+                  columnContentTypes={["text", "text", "text", "text", "text"]}
+                  headings={["Ordine", "Cliente", "Email", "Importo", "Azione"]}
+                  rows={gcOrders.map((order) => [
+                    `#${order.order_number}`,
+                    `${order.customer?.first_name || ""} ${order.customer?.last_name || ""}`.trim() || "—",
+                    order.email,
+                    `€${parseFloat(order.total_price).toFixed(2)}`,
+                    sentOrderIds.has(order.id) ? (
+                      <Badge tone="success">Inviata</Badge>
+                    ) : (
+                      <Button
+                        size="slim"
+                        loading={sendingOrderId === order.id}
+                        onClick={() => handleManualSend(order)}
+                      >
+                        Invia email
+                      </Button>
+                    ),
+                  ])}
+                />
               )}
             </BlockStack>
           </Card>

@@ -129,6 +129,43 @@ export async function getFirstGiftCardProductImage(): Promise<{ imageUrl: string
   };
 }
 
+export interface GiftCardOrder {
+  id: number;
+  order_number: number;
+  email: string;
+  created_at: string;
+  total_price: string;
+  currency: string;
+  customer: { first_name: string; last_name: string } | null;
+  line_items: { title: string; price: string; gift_card: boolean }[];
+}
+
+export async function getGiftCardOrders(): Promise<GiftCardOrder[]> {
+  const headers = await getHeaders();
+  const all: GiftCardOrder[] = [];
+  let url: string | null = `${getBaseUrl()}/orders.json?status=any&limit=250&fields=id,order_number,email,created_at,total_price,currency,customer,line_items`;
+
+  while (url) {
+    const res = await fetch(url, { headers });
+    if (!res.ok) throw new Error(`Shopify API error: ${res.status}`);
+    const data = await res.json();
+    const orders: GiftCardOrder[] = data.orders || [];
+    // keep only orders where all line items are gift cards
+    for (const order of orders) {
+      if (
+        order.email &&
+        order.line_items.length > 0 &&
+        order.line_items.every((i) => i.gift_card === true)
+      ) {
+        all.push(order);
+      }
+    }
+    url = parseLinkHeader(res.headers.get("link"));
+  }
+
+  return all;
+}
+
 export async function getOptInCustomers(): Promise<ShopifyCustomer[]> {
   const all: ShopifyCustomer[] = [];
   const headers = await getHeaders();
