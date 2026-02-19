@@ -326,7 +326,7 @@ export default function GiftCardAutomationPage() {
     if (loading) return;
     if (previewDebounceRef.current) clearTimeout(previewDebounceRef.current);
     previewDebounceRef.current = setTimeout(() => {
-      let bodyHtml = blocksToHtml(previewInputs.blocks, previewInputs.btnColor);
+      let bodyHtml = blocksToHtml(previewInputs.blocks, previewInputs.btnColor, false);
       bodyHtml = bodyHtml || previewInputs.subject;
       // Replace gift card placeholders for preview
       if (previewInputs.giftCardImageUrl) {

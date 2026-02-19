@@ -259,7 +259,7 @@ export default function WelcomeAutomationPage() {
     if (loading) return;
     if (previewDebounceRef.current) clearTimeout(previewDebounceRef.current);
     previewDebounceRef.current = setTimeout(() => {
-      const bodyHtml = blocksToHtml(previewInputs.blocks, previewInputs.btnColor);
+      const bodyHtml = blocksToHtml(previewInputs.blocks, previewInputs.btnColor, false);
       const html = buildPreviewHtml({
         subject: previewInputs.subject,
         preheader: previewInputs.preheader,

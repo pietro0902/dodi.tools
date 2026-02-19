@@ -251,7 +251,7 @@ export default function CampaignEditor() {
 
   // --- Assembled HTML from blocks (for preview & send) ---
   const assembledHtml = useMemo(
-    () => blocksToHtml(blocks, btnColor),
+    () => blocksToHtml(blocks, btnColor, false),
     [blocks, btnColor]
   );
 
@@ -434,7 +434,7 @@ export default function CampaignEditor() {
   // --- Send or schedule campaign ---
   const handleSend = useCallback(async () => {
     if (!app) return;
-    const finalHtml = blocksToHtml(blocks, btnColor);
+    const finalHtml = blocksToHtml(blocks, btnColor, false);
     if (!subject.trim() || !finalHtml.trim()) {
       app.toast.show("Compila almeno oggetto e contenuto", { isError: true });
       return;

@@ -1,6 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
 import path from "path";
 import fs from "fs";
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+import satori from "satori";
+import { initWasm, Resvg } from "@resvg/resvg-wasm";
+
+let wasmInited = false;
+let cachedFont: ArrayBuffer | null = null;
+
+async function ensureWasm() {
+  if (wasmInited) return;
+  const wasmPath = path.join(
+    process.cwd(),
+    "node_modules/@resvg/resvg-wasm/index_bg.wasm"
+  );
+  await initWasm(fs.readFileSync(wasmPath));
+  wasmInited = true;
+}
+
+async function getFont(): Promise<ArrayBuffer> {
+  if (cachedFont) return cachedFont;
+  const res = await fetch(
+    "https://fonts.gstatic.com/s/inter/v13/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuLyfAZ9hiJ-Ek-_EeA.woff"
+  );
+  cachedFont = await res.arrayBuffer();
+  return cachedFont;
+}
 
 function formatAmount(raw: string): string {
   const num = parseFloat(raw);
@@ -8,18 +33,10 @@ function formatAmount(raw: string): string {
   return Number.isInteger(num) ? String(num) : num.toFixed(2).replace(".", ",");
 }
 
-function escapeXml(str: string): string {
-  return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const name = escapeXml((searchParams.get("name") || "Cliente").toUpperCase());
-  const amount = escapeXml(formatAmount(searchParams.get("amount") || "0"));
+  const name = (searchParams.get("name") || "Cliente").toUpperCase();
+  const amount = formatAmount(searchParams.get("amount") || "0");
 
   const templatePath = path.join(process.cwd(), "public", "gift-card-template.png");
   if (!fs.existsSync(templatePath)) {
@@ -29,7 +46,6 @@ export async function GET(request: NextRequest) {
   const templateBase64 = fs.readFileSync(templatePath).toString("base64");
   const dataUrl = `data:image/png;base64,${templateBase64}`;
 
-  // Use sharp (Next.js dep) only for dimensions — no bundling issues
   const sharp = (await import("sharp")).default;
   const meta = await sharp(templatePath).metadata();
   const W = meta.width ?? 800;
@@ -38,21 +54,90 @@ export async function GET(request: NextRequest) {
   const sx = W / 800;
   const sy = H / 1040;
   const NAME_X = Math.round(210 * sx);
-  const NAME_Y = Math.round(765 * sy);
+  const NAME_Y = Math.round(720 * sy); // top of text (satori uses top, not baseline)
   const AMOUNT_X = Math.round(350 * sx);
-  const AMOUNT_Y = Math.round(840 * sy);
+  const AMOUNT_Y = Math.round(793 * sy);
   const FONT_SIZE = Math.round(54 * sx);
 
-  const svg = `<?xml version="1.0" encoding="UTF-8"?>
-<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
-  <image href="${dataUrl}" x="0" y="0" width="${W}" height="${H}"/>
-  <text x="${NAME_X}" y="${NAME_Y}" font-family="Arial, Helvetica, sans-serif" font-size="${FONT_SIZE}" font-weight="bold" fill="#1a1a1a">${name}</text>
-  <text x="${AMOUNT_X}" y="${AMOUNT_Y}" font-family="Arial, Helvetica, sans-serif" font-size="${FONT_SIZE}" font-weight="bold" fill="#1a1a1a">&#8364;${amount}</text>
-</svg>`;
+  await ensureWasm();
+  const font = await getFont();
 
-  return new NextResponse(svg, {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const element: any = {
+      type: "div",
+      props: {
+        style: {
+          display: "flex",
+          width: W,
+          height: H,
+          position: "relative",
+        },
+        children: [
+          {
+            type: "img",
+            props: {
+              src: dataUrl,
+              width: W,
+              height: H,
+              style: { position: "absolute", top: 0, left: 0 },
+            },
+          },
+          {
+            type: "span",
+            props: {
+              style: {
+                position: "absolute",
+                left: NAME_X,
+                top: NAME_Y,
+                fontSize: FONT_SIZE,
+                fontWeight: 700,
+                color: "#1a1a1a",
+                fontFamily: "Inter",
+              },
+              children: name,
+            },
+          },
+          {
+            type: "span",
+            props: {
+              style: {
+                position: "absolute",
+                left: AMOUNT_X,
+                top: AMOUNT_Y,
+                fontSize: FONT_SIZE,
+                fontWeight: 700,
+                color: "#1a1a1a",
+                fontFamily: "Inter",
+              },
+              children: `€${amount}`,
+            },
+          },
+        ],
+      },
+  };
+
+  const svg = await satori(element, {
+    width: W,
+    height: H,
+    fonts: [
+      {
+        name: "Inter",
+        data: font,
+        weight: 700,
+        style: "normal",
+      },
+    ],
+  });
+
+  const resvg = new Resvg(svg, {
+    fitTo: { mode: "width", value: W },
+  });
+  const pngData = resvg.render();
+  const pngBuffer = Buffer.from(pngData.asPng());
+
+  return new NextResponse(pngBuffer, {
     headers: {
-      "Content-Type": "image/svg+xml",
+      "Content-Type": "image/png",
       "Cache-Control": "no-store",
     },
   });

@@ -264,7 +264,7 @@ export default function AbandonedCartAutomationPage() {
     if (loading) return;
     if (previewDebounceRef.current) clearTimeout(previewDebounceRef.current);
     previewDebounceRef.current = setTimeout(() => {
-      let bodyHtml = blocksToHtml(previewInputs.blocks, previewInputs.btnColor);
+      let bodyHtml = blocksToHtml(previewInputs.blocks, previewInputs.btnColor, false);
       const cartBlock = previewInputs.blocks.find((b) => b.type === "cart_items");
       const cartColors = cartBlock?.type === "cart_items" ? {
         textColor: cartBlock.textColor,

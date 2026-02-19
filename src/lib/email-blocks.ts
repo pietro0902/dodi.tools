@@ -103,7 +103,7 @@ export function createDefaultBlock(type: EmailBlockType): EmailBlock {
 
 // ── Assemble blocks → single HTML string ──
 
-export function blocksToHtml(blocks: EmailBlock[], btnColor: string): string {
+export function blocksToHtml(blocks: EmailBlock[], btnColor: string, forEmail = true): string {
   return blocks
     .map((block) => {
       switch (block.type) {
@@ -129,7 +129,8 @@ export function blocksToHtml(blocks: EmailBlock[], btnColor: string): string {
 
         case "logo": {
           if (!block.src) return "";
-          const invertStyle = block.inverted ? ";filter:invert(1)" : "";
+          // CSS filter:invert is not supported in email clients — skip in email output
+          const invertStyle = (!forEmail && block.inverted) ? ";filter:invert(1)" : "";
           return `<div style="text-align:center;padding:24px 0"><img src="${block.src}" alt="${block.alt || ""}" width="${block.width}" style="display:block;margin:0 auto;height:auto${invertStyle}" /></div>`;
         }
 

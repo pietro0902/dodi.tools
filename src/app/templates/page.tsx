@@ -136,7 +136,7 @@ export default function TemplatesPage() {
     if (!editorOpen) return;
     if (previewDebounceRef.current) clearTimeout(previewDebounceRef.current);
     previewDebounceRef.current = setTimeout(() => {
-      const bodyHtml = blocksToHtml(previewInputs.editorBlocks, previewInputs.editorBtnColor);
+      const bodyHtml = blocksToHtml(previewInputs.editorBlocks, previewInputs.editorBtnColor, false);
       const html = buildPreviewHtml({
         subject: previewInputs.editorSubject,
         preheader: previewInputs.editorPreheader,

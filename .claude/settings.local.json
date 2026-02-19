@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "WebSearch",
+      "WebFetch(domain:upstash.com)",
+      "Bash(npm run build:*)",
+      "Bash(npx vercel:*)",
+      "Bash(del \"C:\\\\Users\\\\pietro\\\\Desktop\\\\dodi tools\\\\email marketing\\\\email-marketing\\\\src\\\\lib\\\\resolve-template.ts\")",
+      "Bash(node --version:*)",
+      "Bash(node scripts/register-webhooks.mjs:*)",
+      "Bash(node:*)",
+      "Bash(git rm:*)",
+      "Bash(npm install:*)",
+      "Bash(npm --prefix \"C:/Users/pietro/Desktop/dodi tools/email marketing/email-marketing\" list satori resvg-js @resvg/resvg-js)",
+      "Bash(npm:*)",
+      "Bash(ls:*)"
+    ]
+  }
+}
