@@ -28,7 +28,7 @@ let cachedFont: Buffer | null = null;
 
 function getFont(): Buffer {
   if (cachedFont) return cachedFont;
-  const fontPath = path.join(process.cwd(), "public", "inter-bold.woff");
+  const fontPath = path.join(process.cwd(), "public", "inter-bold.ttf");
   cachedFont = fs.readFileSync(fontPath);
   return cachedFont;
 }
@@ -70,27 +70,21 @@ export async function GET(request: NextRequest) {
 
     await ensureWasm();
     const fontBuffer = getFont();
-    const fontBase64 = fontBuffer.toString("base64");
 
     // Build SVG with only the text overlay (transparent background)
     const textSvg = `<?xml version="1.0" encoding="UTF-8"?>
 <svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <style>
-      @font-face {
-        font-family: 'Inter';
-        src: url('data:font/woff;base64,${fontBase64}');
-        font-weight: 700;
-      }
-    </style>
-  </defs>
-  <text x="${NAME_X}" y="${NAME_Y}" font-family="Inter, Arial, sans-serif" font-size="${FONT_SIZE}" font-weight="700" fill="#1a1a1a">${name}</text>
-  <text x="${AMOUNT_X}" y="${AMOUNT_Y}" font-family="Inter, Arial, sans-serif" font-size="${FONT_SIZE}" font-weight="700" fill="#1a1a1a">&#8364;${amount}</text>
+  <text x="${NAME_X}" y="${NAME_Y}" font-family="Inter" font-size="${FONT_SIZE}" font-weight="700" fill="#1a1a1a">${name}</text>
+  <text x="${AMOUNT_X}" y="${AMOUNT_Y}" font-family="Inter" font-size="${FONT_SIZE}" font-weight="700" fill="#1a1a1a">&#8364;${amount}</text>
 </svg>`;
 
-    // Convert text SVG → PNG with resvg-wasm
+    // Convert text SVG → PNG with resvg-wasm, passing the TTF font directly
     const resvg = new Resvg(textSvg, {
       fitTo: { mode: "width", value: W },
+      font: {
+        fontBuffers: [new Uint8Array(fontBuffer)],
+        loadSystemFonts: false,
+      },
     });
     const textPngBuffer = Buffer.from(resvg.render().asPng());
 
