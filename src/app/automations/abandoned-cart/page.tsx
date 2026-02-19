@@ -279,7 +279,8 @@ export default function AbandonedCartAutomationPage() {
         "79.98",
         "EUR",
         "#",
-        cartColors
+        cartColors,
+        process.env.NEXT_PUBLIC_STORE_URL || "https://www.dodishop.it"
       );
       if (bodyHtml.includes("__CART_ITEMS__")) {
         bodyHtml = bodyHtml.replace("__CART_ITEMS__", sampleCartHtml);
