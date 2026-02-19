@@ -738,7 +738,7 @@ export default function GiftCardAutomationPage() {
           <Card>
             <BlockStack gap="400">
               <InlineStack align="space-between" blockAlign="center">
-                <Text as="h2" variant="headingMd">Invia manualmente</Text>
+                <Text as="h2" variant="headingMd">Invio manuale</Text>
                 <Button size="slim" onClick={loadGcOrders} loading={gcOrdersLoading}>Aggiorna</Button>
               </InlineStack>
               {/* Test send form */}
