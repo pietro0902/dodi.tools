@@ -424,12 +424,18 @@ export function BlockEditor({
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", color: block.textColor || "#374151" }}>
                     <tbody>
                       <tr>
-                        <td style={{ padding: "6px 0", borderBottom: "1px solid #f3f4f6", color: block.textColor || "#374151" }}>Prodotto esempio × 1</td>
-                        <td style={{ padding: "6px 0", borderBottom: "1px solid #f3f4f6", textAlign: "right", color: block.textColor || "#374151" }}>€29,99</td>
+                        <td style={{ padding: "6px 8px 6px 0", borderBottom: "1px solid #f3f4f6", width: "64px", verticalAlign: "middle" }}>
+                          <div style={{ width: "48px", height: "48px", borderRadius: "6px", backgroundColor: "#e5e7eb", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", color: "#9ca3af" }}>IMG</div>
+                        </td>
+                        <td style={{ padding: "6px 0", borderBottom: "1px solid #f3f4f6", color: block.textColor || "#374151", verticalAlign: "middle" }}>
+                          <strong>Prodotto esempio</strong><br />
+                          <span style={{ color: "#9ca3af", fontSize: "12px" }}>Taglia M</span><br />
+                          <span style={{ color: "#6b7280", fontSize: "12px" }}>Qtà: 1</span>
+                        </td>
+                        <td style={{ padding: "6px 0", borderBottom: "1px solid #f3f4f6", textAlign: "right", color: block.textColor || "#374151", verticalAlign: "middle", whiteSpace: "nowrap" }}>€29,99</td>
                       </tr>
                       <tr>
-                        <td style={{ padding: "8px 0 0", fontWeight: 600, color: block.textColor || "#374151" }}>Totale</td>
-                        <td style={{ padding: "8px 0 0", fontWeight: 600, textAlign: "right", color: block.textColor || "#374151" }}>€29,99</td>
+                        <td colSpan={3} style={{ padding: "8px 0 0", fontWeight: 600, textAlign: "right", color: block.textColor || "#374151" }}>Totale: €29,99</td>
                       </tr>
                     </tbody>
                   </table>

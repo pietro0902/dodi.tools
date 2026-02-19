@@ -3,6 +3,7 @@ interface CartLineItem {
   quantity: number;
   price: string;
   variantTitle?: string | null;
+  imageUrl?: string | null;
 }
 
 interface CartColors {
@@ -31,11 +32,18 @@ export function buildCartItemsHtml(
   const itemRows = lineItems
     .map((item) => {
       const variant = item.variantTitle ? ` — ${item.variantTitle}` : "";
+      const imgCell = item.imageUrl
+        ? `<td style="padding:8px 12px 8px 0;border-bottom:1px solid #f3f4f6;width:64px;vertical-align:middle">
+            <img src="${escapeHtml(item.imageUrl)}" alt="${escapeHtml(item.title)}" width="56" height="56" style="display:block;border-radius:6px;object-fit:cover;width:56px;height:56px" />
+          </td>`
+        : "";
       return `<tr>
-        <td style="padding:8px 0;border-bottom:1px solid #f3f4f6;font-size:14px;color:${textColor}">
-          ${escapeHtml(item.title)}${escapeHtml(variant)} &times; ${item.quantity}
+        ${imgCell}
+        <td style="padding:8px 0;border-bottom:1px solid #f3f4f6;font-size:14px;color:${textColor};vertical-align:middle">
+          <strong>${escapeHtml(item.title)}</strong>${variant ? `<br/><span style="color:#9ca3af;font-size:13px">${escapeHtml(variant)}</span>` : ""}
+          <br/><span style="color:#6b7280;font-size:13px">Qtà: ${item.quantity}</span>
         </td>
-        <td style="padding:8px 0;border-bottom:1px solid #f3f4f6;font-size:14px;color:${textColor};text-align:right;white-space:nowrap">
+        <td style="padding:8px 0;border-bottom:1px solid #f3f4f6;font-size:14px;color:${textColor};text-align:right;vertical-align:middle;white-space:nowrap">
           ${formatPrice(item.price)}
         </td>
       </tr>`;
@@ -46,11 +54,8 @@ export function buildCartItemsHtml(
 <table width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0">
   ${itemRows}
   <tr>
-    <td style="padding:12px 0 0;font-size:16px;font-weight:bold;color:${textColor}">
-      Totale
-    </td>
-    <td style="padding:12px 0 0;font-size:16px;font-weight:bold;color:${textColor};text-align:right">
-      ${formatPrice(totalPrice)}
+    <td colspan="3" style="padding:12px 0 0;font-size:16px;font-weight:bold;color:${textColor};text-align:right">
+      Totale: ${formatPrice(totalPrice)}
     </td>
   </tr>
 </table>

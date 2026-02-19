@@ -272,7 +272,7 @@ export default function AbandonedCartAutomationPage() {
         btnTextColor: cartBlock.btnTextColor,
       } : {};
       const sampleCartHtml = buildCartItemsHtml(
-        [{ title: "Prodotto esempio", quantity: 1, price: "29.99" }],
+        [{ title: "Prodotto esempio", quantity: 1, price: "29.99", variantTitle: "Taglia M", imageUrl: "https://placehold.co/56x56/e5e7eb/9ca3af?text=IMG" }],
         "29.99",
         "EUR",
         "#",

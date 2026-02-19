@@ -98,6 +98,8 @@ export interface AbandonedCheckout {
     quantity: number;
     price: string;
     variant_title: string | null;
+    image?: { src: string } | null;
+    product_id?: number | null;
   }[];
 }
 

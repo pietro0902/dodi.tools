@@ -74,6 +74,7 @@ export async function POST(request: Request) {
           quantity: item.quantity,
           price: item.price,
           variantTitle: item.variant_title,
+          imageUrl: item.image?.src ?? null,
         })),
         checkout.total_price,
         checkout.currency,
