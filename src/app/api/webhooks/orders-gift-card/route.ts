@@ -53,7 +53,19 @@ export async function POST(request: NextRequest) {
 
     const resend = getResendClient();
     const storeName = process.env.STORE_NAME || "Store";
-    const firstName = order.customer?.first_name || "Cliente";
+
+    // Try to get recipient info from line item properties (gift send feature)
+    const giftCardLineItem = order.line_items.find((item) => item.gift_card === true);
+    const getProp = (name: string) =>
+      giftCardLineItem?.properties?.find(
+        (p) => p.name.toLowerCase().includes(name.toLowerCase())
+      )?.value || null;
+
+    const recipientName = getProp("nome destinatario") || getProp("destinatario") || getProp("recipient name") || null;
+    const recipientEmail = getProp("email destinatario") || getProp("recipient email") || null;
+
+    const firstName = recipientName || order.customer?.first_name || "Cliente";
+    const toEmail = recipientEmail || order.email;
     const replace = (s: string) => s.replace(/\{\{name\}\}/g, firstName);
 
     const gc = settings.giftCard;
@@ -66,7 +78,7 @@ export async function POST(request: NextRequest) {
 
     // Replace gift card placeholders with a personalized generated image
     if (bodyHtml.includes("__GIFT_CARD_IMAGE__") || bodyHtml.includes("__GIFT_CARD_URL__")) {
-      const giftCardItem = order.line_items.find((item) => item.gift_card === true);
+      const giftCardItem = giftCardLineItem;
       const appUrl = process.env.APP_URL || "";
       if (appUrl && giftCardItem) {
         const amount = giftCardItem.price || "0";
@@ -81,7 +93,7 @@ export async function POST(request: NextRequest) {
 
     await resend.emails.send({
       from: process.env.EMAIL_FROM!,
-      to: order.email,
+      to: toEmail,
       subject,
       react: CampaignEmail({
         firstName,

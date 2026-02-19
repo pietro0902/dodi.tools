@@ -44,6 +44,7 @@ export interface OrderLineItem {
   variant_title: string | null;
   gift_card?: boolean;
   product_id?: number | null;
+  properties?: { name: string; value: string }[];
 }
 
 export interface OrderAddress {
