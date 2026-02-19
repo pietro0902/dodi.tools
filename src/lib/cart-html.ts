@@ -46,8 +46,10 @@ export function buildCartItemsHtml(
 
           const variant = item.variantTitle ? item.variantTitle : null;
           const imgHtml = item.imageUrl
-            ? `<img src="${escapeHtml(item.imageUrl)}" alt="${escapeHtml(item.title)}" width="200" style="display:block;width:100%;height:auto;border-radius:8px 8px 0 0" />`
-            : `<div style="width:100%;height:180px;background:#f3f4f6;border-radius:8px 8px 0 0;display:block"></div>`;
+            ? `<div style="width:100%;height:200px;overflow:hidden;border-radius:8px 8px 0 0;line-height:0">
+                <img src="${escapeHtml(item.imageUrl)}" alt="${escapeHtml(item.title)}" width="200" style="display:block;width:100%;height:200px;object-fit:cover;object-position:center" />
+               </div>`
+            : `<div style="width:100%;height:200px;background:#f3f4f6;border-radius:8px 8px 0 0;display:block"></div>`;
 
           return `<td style="width:${cardWidth};vertical-align:top;padding:0 6px">
   <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;margin-bottom:12px">
