@@ -17,11 +17,13 @@ export function buildCartItemsHtml(
   totalPrice: string,
   currency: string,
   checkoutUrl: string,
-  colors: CartColors = {}
+  colors: CartColors = {},
+  storeUrl?: string
 ): string {
   const textColor = colors.textColor || "#374151";
   const btnColor = colors.btnColor || "#111827";
   const btnTextColor = colors.btnTextColor || "#ffffff";
+  const cartUrl = storeUrl ? `${storeUrl}/cart` : null;
 
   const formatPrice = (amount: string) => {
     const num = parseFloat(amount);
@@ -77,9 +79,12 @@ export function buildCartItemsHtml(
   ${rowsHtml}
 </table>
 <div style="text-align:center;margin:24px 0">
-  <a href="${escapeHtml(checkoutUrl)}" style="display:inline-block;background-color:${btnColor};color:${btnTextColor};font-size:16px;font-weight:600;text-decoration:none;padding:12px 32px;border-radius:6px">
+  <a href="${escapeHtml(checkoutUrl)}" style="display:inline-block;background-color:${btnColor};color:${btnTextColor};font-size:16px;font-weight:600;text-decoration:none;padding:12px 32px;border-radius:6px;margin:0 8px 8px">
     Completa l&#8217;acquisto
   </a>
+  ${cartUrl ? `<a href="${escapeHtml(cartUrl)}" style="display:inline-block;background-color:transparent;color:${btnColor};font-size:16px;font-weight:600;text-decoration:none;padding:11px 32px;border-radius:6px;border:2px solid ${btnColor};margin:0 8px 8px">
+    Torna al carrello
+  </a>` : ""}
 </div>`;
 }
 

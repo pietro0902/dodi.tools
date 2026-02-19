@@ -81,7 +81,8 @@ export async function POST(request: Request) {
         checkout.total_price,
         checkout.currency,
         checkout.abandoned_checkout_url,
-        cartColors
+        cartColors,
+        process.env.STORE_URL
       );
 
       const subject = replace(ac.subject);
