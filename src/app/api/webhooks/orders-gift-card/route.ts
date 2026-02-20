@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyShopifyWebhook } from "@/lib/verify-webhook";
-import { hasMarketingConsent } from "@/lib/consent";
 import { getResendClient } from "@/lib/resend";
 import { getAutomationSettings } from "@/lib/automation-settings";
 import { blocksToHtml } from "@/lib/email-blocks";
@@ -34,13 +33,6 @@ export async function POST(request: NextRequest) {
 
     if (!order.email) {
       return NextResponse.json({ skipped: "No email" }, { status: 200 });
-    }
-
-    if (!hasMarketingConsent(order.customer?.email_marketing_consent)) {
-      return NextResponse.json(
-        { skipped: "No marketing consent" },
-        { status: 200 }
-      );
     }
 
     const settings = await getAutomationSettings();
