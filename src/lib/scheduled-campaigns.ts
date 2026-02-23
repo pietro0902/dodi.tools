@@ -19,6 +19,8 @@ export interface ScheduledCampaign {
   btnColor?: string;
   containerColor?: string;
   textColor?: string;
+  // null = not started yet, array = IDs still to send (for multi-day batching)
+  pendingCustomerIds?: number[] | null;
 }
 
 const NAMESPACE = "email_campaigns";

@@ -8,8 +8,11 @@ import {
   type ScheduledCampaign,
 } from "@/lib/scheduled-campaigns";
 import { logActivity } from "@/lib/activity-log";
-import { verifyQStashRequest } from "@/lib/qstash";
+import { verifyQStashRequest, getQStashClient, getAppUrl } from "@/lib/qstash";
 import CampaignEmail from "@/emails/campaign";
+
+// Leave some headroom for transactional emails (welcome, cart, etc.)
+const DAILY_LIMIT = 90;
 
 export async function POST(request: Request) {
   try {
@@ -21,7 +24,7 @@ export async function POST(request: Request) {
     const campaigns = await getScheduledCampaigns();
     const now = new Date();
 
-    // If a specific campaignId is provided (legacy/manual trigger), use only that one.
+    // If a specific campaignId is provided, use only that one.
     // Otherwise pick all scheduled campaigns whose scheduledAt has passed.
     let due: ScheduledCampaign[];
     if (body.campaignId) {
@@ -51,18 +54,37 @@ export async function POST(request: Request) {
       // Idempotent: skip if already sent or cancelled
       if (campaign.status !== "scheduled") continue;
 
-      let customers = allCustomers;
-      if (campaign.recipientMode === "manual" && campaign.customerIds?.length) {
-        const idSet = new Set(campaign.customerIds);
-        customers = customers.filter((c) => idSet.has(c.id));
+      // Determine the full list of recipient IDs for this campaign
+      let allRecipientIds: number[];
+
+      if (campaign.pendingCustomerIds != null) {
+        // Continuation batch — use the saved pending list
+        allRecipientIds = campaign.pendingCustomerIds;
+      } else {
+        // First run — resolve recipients now
+        let resolved = allCustomers;
+        if (campaign.recipientMode === "manual" && campaign.customerIds?.length) {
+          const idSet = new Set(campaign.customerIds);
+          resolved = allCustomers.filter((c) => idSet.has(c.id));
+        }
+        allRecipientIds = resolved.map((c) => c.id);
       }
 
-      if (customers.length === 0) {
+      // Slice this day's batch
+      const thisBatchIds = allRecipientIds.slice(0, DAILY_LIMIT);
+      const remainingIds = allRecipientIds.slice(DAILY_LIMIT);
+
+      // Resolve to customer objects (re-checks opt-in status, handles unsubscribes)
+      const batchIdSet = new Set(thisBatchIds);
+      const batchCustomers = allCustomers.filter((c) => batchIdSet.has(c.id));
+
+      if (batchCustomers.length === 0) {
         campaign.status = "sent";
+        campaign.pendingCustomerIds = [];
         continue;
       }
 
-      const result = await sendInBatches(customers, 100, 1000, async (customer) => {
+      const result = await sendInBatches(batchCustomers, 100, 1000, async (customer) => {
         const firstName = customer.first_name || "Cliente";
         const personalizedHtml = campaign.bodyHtml.replace(/\{\{name\}\}/g, firstName);
 
@@ -86,23 +108,60 @@ export async function POST(request: Request) {
         });
       });
 
-      campaign.status = "sent";
       totalSent += result.sent;
       totalFailed += result.failed;
 
-      try {
-        await logActivity({
-          type: "scheduled_campaign_sent",
-          summary: `Campagna programmata '${campaign.subject}' inviata a ${result.sent} iscritti`,
-          details: {
-            subject: campaign.subject,
-            sent: result.sent,
-            failed: result.failed,
-            recipientCount: customers.length,
-          },
-        });
-      } catch (logErr) {
-        console.error("Activity log error:", logErr);
+      if (remainingIds.length > 0) {
+        // Schedule continuation for tomorrow at the same time
+        const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
+        try {
+          const qstash = getQStashClient();
+          const { messageId } = await qstash.publishJSON({
+            url: getAppUrl("/api/cron/scheduled-campaigns"),
+            body: { campaignId: campaign.id },
+            notBefore: Math.floor(tomorrow.getTime() / 1000),
+            retries: 3,
+          });
+          campaign.qstashMessageId = messageId;
+        } catch (err) {
+          console.error("Failed to schedule next batch:", err);
+        }
+
+        campaign.pendingCustomerIds = remainingIds;
+        // status stays "scheduled" — more to send tomorrow
+
+        try {
+          await logActivity({
+            type: "scheduled_campaign_sent",
+            summary: `Campagna '${campaign.subject}' — batch inviato a ${result.sent} iscritti, ne rimangono ${remainingIds.length}`,
+            details: {
+              subject: campaign.subject,
+              sent: result.sent,
+              failed: result.failed,
+              remaining: remainingIds.length,
+            },
+          });
+        } catch (logErr) {
+          console.error("Activity log error:", logErr);
+        }
+      } else {
+        campaign.status = "sent";
+        campaign.pendingCustomerIds = [];
+
+        try {
+          await logActivity({
+            type: "scheduled_campaign_sent",
+            summary: `Campagna '${campaign.subject}' completata — inviata a ${result.sent} iscritti`,
+            details: {
+              subject: campaign.subject,
+              sent: result.sent,
+              failed: result.failed,
+              remaining: 0,
+            },
+          });
+        } catch (logErr) {
+          console.error("Activity log error:", logErr);
+        }
       }
     }
 
