@@ -22,9 +22,9 @@ function formatPrice(amount: string, currency: string): string {
  */
 function buildProductCard(product: ShopifyProduct, btnColor?: string): string {
   const imgBlock = product.imageUrl
-    ? `<img src="${esc(product.imageUrl)}" alt="${esc(product.title)}"
-          style="display:block;width:100%;height:220px;object-fit:cover;border-radius:8px 8px 0 0;filter:none" />`
-    : `<div style="height:220px;background:#f3f4f6;border-radius:8px 8px 0 0"></div>`;
+    ? `<img src="${esc(product.imageUrl)}" alt="${esc(product.title)}" width="560"
+          style="display:block;width:100%;max-width:100%;height:auto;border-radius:8px 8px 0 0;filter:none" />`
+    : `<div style="height:200px;background:#f3f4f6;border-radius:8px 8px 0 0"></div>`;
 
   const compareBlock =
     product.compareAtPrice && parseFloat(product.compareAtPrice) > parseFloat(product.price)
@@ -48,8 +48,8 @@ function buildProductCard(product: ShopifyProduct, btnColor?: string): string {
  */
 function buildScrollCard(product: ShopifyProduct, btnColor?: string): string {
   const imgBlock = product.imageUrl
-    ? `<img src="${esc(product.imageUrl)}" alt="${esc(product.title)}"
-          style="display:block;width:100%;height:160px;object-fit:cover;border-radius:8px 8px 0 0;filter:none" />`
+    ? `<img src="${esc(product.imageUrl)}" alt="${esc(product.title)}" width="200"
+          style="display:block;width:100%;max-width:100%;height:auto;border-radius:8px 8px 0 0;filter:none" />`
     : `<div style="height:160px;background:#f3f4f6;border-radius:8px 8px 0 0"></div>`;
 
   const compareBlock =

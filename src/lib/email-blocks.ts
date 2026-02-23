@@ -113,7 +113,7 @@ export function blocksToHtml(blocks: EmailBlock[], btnColor: string, forEmail = 
         case "image": {
           if (!block.src) return "";
           const w = block.width || "100%";
-          return `<img src="${block.src}" alt="${block.alt || ""}" style="display:block;width:${w};max-width:100%;height:auto;margin:16px auto;border-radius:8px" />`;
+          return `<img src="${block.src}" alt="${block.alt || ""}" width="560" style="display:block;width:${w};max-width:100%;height:auto;margin:16px auto;border-radius:8px;filter:none" />`;
         }
 
         case "button": {
