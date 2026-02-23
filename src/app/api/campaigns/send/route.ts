@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getOptInCustomers } from "@/lib/shopify";
 import { getResendClient } from "@/lib/resend";
-import { sendInBatches } from "@/lib/rate-limit";
 import { getSessionFromRequest } from "@/lib/session-token";
 import { logActivity } from "@/lib/activity-log";
+import { getQStashClient, getAppUrl } from "@/lib/qstash";
+import { addScheduledCampaign } from "@/lib/scheduled-campaigns";
 import CampaignEmail from "@/emails/campaign";
+import { renderAsync } from "@react-email/render";
+
+const DAILY_LIMIT = parseInt(process.env.DAILY_EMAIL_LIMIT || "90", 10);
 
 interface CampaignBody {
   subject: string;
@@ -14,6 +18,7 @@ interface CampaignBody {
   ctaText?: string;
   ctaUrl?: string;
   customerIds?: number[];
+  excludeCustomerIds?: number[];
   bgColor?: string;
   btnColor?: string;
   containerColor?: string;
@@ -25,7 +30,6 @@ export async function POST(request: NextRequest) {
     const authHeader = request.headers.get("authorization");
     const apiKey = process.env.CAMPAIGN_API_KEY;
 
-    // Accept either API key auth or session token auth (from embedded dashboard)
     const isApiKeyAuth = apiKey && authHeader === `Bearer ${apiKey}`;
     const isSessionAuth = !isApiKeyAuth && getSessionFromRequest(request);
 
@@ -51,65 +55,129 @@ export async function POST(request: NextRequest) {
       customers = customers.filter((c) => idSet.has(c.id));
     }
 
-    if (customers.length === 0) {
-      return NextResponse.json({
-        sent: 0,
-        message: "No opt-in customers found",
-      });
+    // Exclude specific customer IDs (already received, or manually excluded)
+    if (body.excludeCustomerIds && body.excludeCustomerIds.length > 0) {
+      const excludeSet = new Set(body.excludeCustomerIds);
+      customers = customers.filter((c) => !excludeSet.has(c.id));
     }
 
-    const resend = getResendClient();
+    if (customers.length === 0) {
+      return NextResponse.json({ sent: 0, message: "Nessun destinatario trovato" });
+    }
+
     const storeName = process.env.STORE_NAME || "Store";
+    const resend = getResendClient();
 
-    const result = await sendInBatches(customers, 100, 1000, async (customer) => {
-      const firstName = customer.first_name || "Cliente";
-      const personalizedHtml = htmlContent.replace(/\{\{name\}\}/g, firstName);
+    // Take today's batch
+    const thisBatch = customers.slice(0, DAILY_LIMIT);
+    const remaining = customers.slice(DAILY_LIMIT);
 
-      await resend.emails.send({
-        from: process.env.EMAIL_FROM!,
-        to: customer.email,
-        subject: body.subject,
-        react: CampaignEmail({
-          firstName,
+    // Build batch emails (one API call, no rate limit issues)
+    const emails = await Promise.all(
+      thisBatch.map(async (customer) => {
+        const firstName = customer.first_name || "Cliente";
+        const personalizedHtml = htmlContent.replace(/\{\{name\}\}/g, firstName);
+        const html = await renderAsync(
+          CampaignEmail({
+            firstName,
+            subject: body.subject,
+            previewText: body.previewText || body.subject,
+            bodyHtml: personalizedHtml,
+            ctaText: body.ctaText,
+            ctaUrl: body.ctaUrl,
+            storeName,
+            bgColor: body.bgColor,
+            btnColor: body.btnColor,
+            containerColor: body.containerColor,
+            textColor: body.textColor,
+          })
+        );
+        return {
+          from: process.env.EMAIL_FROM!,
+          to: customer.email,
           subject: body.subject,
-          previewText: body.previewText || body.subject,
-          bodyHtml: personalizedHtml,
-          ctaText: body.ctaText,
-          ctaUrl: body.ctaUrl,
-          storeName,
+          html,
+        };
+      })
+    );
+
+    let sent = 0;
+    let failed = 0;
+
+    try {
+      const batchResult = await resend.batch.send(emails);
+      // resend.batch.send returns { data: [...], error }
+      if (batchResult.error) {
+        console.error("Batch send error:", batchResult.error);
+        failed = thisBatch.length;
+      } else {
+        sent = thisBatch.length;
+      }
+    } catch (err) {
+      console.error("Batch send exception:", err);
+      failed = thisBatch.length;
+    }
+
+    // If more recipients remain, schedule continuation for tomorrow
+    let scheduledContinuation = false;
+    if (remaining.length > 0 && sent > 0) {
+      try {
+        const campaignId = crypto.randomUUID();
+        const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
+        const qstash = getQStashClient();
+        const { messageId } = await qstash.publishJSON({
+          url: getAppUrl("/api/cron/scheduled-campaigns"),
+          body: { campaignId },
+          notBefore: Math.floor(tomorrow.getTime() / 1000),
+          retries: 3,
+        });
+
+        await addScheduledCampaign({
+          id: campaignId,
+          subject: body.subject,
+          previewText: body.previewText,
+          bodyHtml: htmlContent,
+          ctaText: body.ctaText || "",
+          ctaUrl: body.ctaUrl || "",
+          logoWidth: 120,
+          recipientMode: "manual",
+          scheduledAt: tomorrow.toISOString(),
+          status: "scheduled",
+          createdAt: new Date().toISOString(),
+          recipientCount: remaining.length,
+          qstashMessageId: messageId,
           bgColor: body.bgColor,
           btnColor: body.btnColor,
           containerColor: body.containerColor,
           textColor: body.textColor,
-        }),
-      });
-    });
+          pendingCustomerIds: remaining.map((c) => c.id),
+        });
+
+        scheduledContinuation = true;
+      } catch (err) {
+        console.error("Failed to schedule continuation:", err);
+      }
+    }
 
     try {
       await logActivity({
         type: "campaign_sent",
-        summary: `Campagna '${body.subject}' inviata a ${result.sent} iscritti`,
-        details: {
-          subject: body.subject,
-          sent: result.sent,
-          failed: result.failed,
-          recipientCount: customers.length,
-        },
+        summary: `Campagna '${body.subject}' inviata a ${sent} iscritti${remaining.length > 0 ? `, altri ${remaining.length} schedulati` : ""}`,
+        details: { subject: body.subject, sent, failed, recipientCount: customers.length },
       });
     } catch (logErr) {
       console.error("Activity log error:", logErr);
     }
 
     return NextResponse.json({
-      totalCustomers: customers.length,
-      sentTo: customers.length,
-      ...result,
+      sent,
+      failed,
+      remaining: remaining.length,
+      scheduledContinuation,
+      dailyLimit: DAILY_LIMIT,
     });
   } catch (error) {
     console.error("Campaign send error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

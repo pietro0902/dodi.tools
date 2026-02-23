@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { getOptInCustomers } from "@/lib/shopify";
 import { getResendClient } from "@/lib/resend";
-import { sendInBatches } from "@/lib/rate-limit";
 import {
   getScheduledCampaigns,
   saveScheduledCampaigns,
@@ -10,9 +9,9 @@ import {
 import { logActivity } from "@/lib/activity-log";
 import { verifyQStashRequest, getQStashClient, getAppUrl } from "@/lib/qstash";
 import CampaignEmail from "@/emails/campaign";
+import { renderAsync } from "@react-email/render";
 
-// Leave some headroom for transactional emails (welcome, cart, etc.)
-const DAILY_LIMIT = 90;
+const DAILY_LIMIT = parseInt(process.env.DAILY_EMAIL_LIMIT || "90", 10);
 
 export async function POST(request: Request) {
   try {
@@ -24,8 +23,6 @@ export async function POST(request: Request) {
     const campaigns = await getScheduledCampaigns();
     const now = new Date();
 
-    // If a specific campaignId is provided, use only that one.
-    // Otherwise pick all scheduled campaigns whose scheduledAt has passed.
     let due: ScheduledCampaign[];
     if (body.campaignId) {
       const found = campaigns.find((c) => c.id === body.campaignId);
@@ -51,17 +48,13 @@ export async function POST(request: Request) {
     let totalFailed = 0;
 
     for (const campaign of due) {
-      // Idempotent: skip if already sent or cancelled
       if (campaign.status !== "scheduled") continue;
 
-      // Determine the full list of recipient IDs for this campaign
+      // Determine recipients
       let allRecipientIds: number[];
-
       if (campaign.pendingCustomerIds != null) {
-        // Continuation batch — use the saved pending list
         allRecipientIds = campaign.pendingCustomerIds;
       } else {
-        // First run — resolve recipients now
         let resolved = allCustomers;
         if (campaign.recipientMode === "manual" && campaign.customerIds?.length) {
           const idSet = new Set(campaign.customerIds);
@@ -70,11 +63,9 @@ export async function POST(request: Request) {
         allRecipientIds = resolved.map((c) => c.id);
       }
 
-      // Slice this day's batch
       const thisBatchIds = allRecipientIds.slice(0, DAILY_LIMIT);
       const remainingIds = allRecipientIds.slice(DAILY_LIMIT);
 
-      // Resolve to customer objects (re-checks opt-in status, handles unsubscribes)
       const batchIdSet = new Set(thisBatchIds);
       const batchCustomers = allCustomers.filter((c) => batchIdSet.has(c.id));
 
@@ -84,35 +75,55 @@ export async function POST(request: Request) {
         continue;
       }
 
-      const result = await sendInBatches(batchCustomers, 100, 1000, async (customer) => {
-        const firstName = customer.first_name || "Cliente";
-        const personalizedHtml = campaign.bodyHtml.replace(/\{\{name\}\}/g, firstName);
-
-        await resend.emails.send({
-          from: process.env.EMAIL_FROM!,
-          to: customer.email,
-          subject: campaign.subject,
-          react: CampaignEmail({
-            firstName,
+      // Build all emails, then send in one batch call (no rate limit issues)
+      const emails = await Promise.all(
+        batchCustomers.map(async (customer) => {
+          const firstName = customer.first_name || "Cliente";
+          const personalizedHtml = campaign.bodyHtml.replace(/\{\{name\}\}/g, firstName);
+          const html = await renderAsync(
+            CampaignEmail({
+              firstName,
+              subject: campaign.subject,
+              previewText: campaign.previewText || campaign.subject,
+              bodyHtml: personalizedHtml,
+              ctaText: campaign.ctaText || undefined,
+              ctaUrl: campaign.ctaUrl || undefined,
+              storeName,
+              bgColor: campaign.bgColor,
+              btnColor: campaign.btnColor,
+              containerColor: campaign.containerColor,
+              textColor: campaign.textColor,
+            })
+          );
+          return {
+            from: process.env.EMAIL_FROM!,
+            to: customer.email,
             subject: campaign.subject,
-            previewText: campaign.previewText || campaign.subject,
-            bodyHtml: personalizedHtml,
-            ctaText: campaign.ctaText || undefined,
-            ctaUrl: campaign.ctaUrl || undefined,
-            storeName,
-            bgColor: campaign.bgColor,
-            btnColor: campaign.btnColor,
-            containerColor: campaign.containerColor,
-            textColor: campaign.textColor,
-          }),
-        });
-      });
+            html,
+          };
+        })
+      );
 
-      totalSent += result.sent;
-      totalFailed += result.failed;
+      let sent = 0;
+      let failed = 0;
+
+      try {
+        const batchResult = await resend.batch.send(emails);
+        if (batchResult.error) {
+          console.error("Batch send error:", batchResult.error);
+          failed = batchCustomers.length;
+        } else {
+          sent = batchCustomers.length;
+        }
+      } catch (err) {
+        console.error("Batch send exception:", err);
+        failed = batchCustomers.length;
+      }
+
+      totalSent += sent;
+      totalFailed += failed;
 
       if (remainingIds.length > 0) {
-        // Schedule continuation for tomorrow at the same time
         const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
         try {
           const qstash = getQStashClient();
@@ -128,18 +139,12 @@ export async function POST(request: Request) {
         }
 
         campaign.pendingCustomerIds = remainingIds;
-        // status stays "scheduled" — more to send tomorrow
 
         try {
           await logActivity({
             type: "scheduled_campaign_sent",
-            summary: `Campagna '${campaign.subject}' — batch inviato a ${result.sent} iscritti, ne rimangono ${remainingIds.length}`,
-            details: {
-              subject: campaign.subject,
-              sent: result.sent,
-              failed: result.failed,
-              remaining: remainingIds.length,
-            },
+            summary: `Campagna '${campaign.subject}' — ${sent} inviati, ${remainingIds.length} rimangono`,
+            details: { subject: campaign.subject, sent, failed, remaining: remainingIds.length },
           });
         } catch (logErr) {
           console.error("Activity log error:", logErr);
@@ -151,13 +156,8 @@ export async function POST(request: Request) {
         try {
           await logActivity({
             type: "scheduled_campaign_sent",
-            summary: `Campagna '${campaign.subject}' completata — inviata a ${result.sent} iscritti`,
-            details: {
-              subject: campaign.subject,
-              sent: result.sent,
-              failed: result.failed,
-              remaining: 0,
-            },
+            summary: `Campagna '${campaign.subject}' completata — ${sent} inviati`,
+            details: { subject: campaign.subject, sent, failed, remaining: 0 },
           });
         } catch (logErr) {
           console.error("Activity log error:", logErr);

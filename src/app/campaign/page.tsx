@@ -158,6 +158,9 @@ export default function CampaignEditor() {
   const [customerSearch, setCustomerSearch] = useState("");
   const [sendConfirmOpen, setSendConfirmOpen] = useState(false);
 
+  // --- Excluded customers (for "all" mode) ---
+  const [excludedCustomerIds, setExcludedCustomerIds] = useState<Set<number>>(new Set());
+
   // --- Step 3: scheduling ---
   const [sendMode, setSendMode] = useState<"now" | "schedule">("now");
   const [scheduleDate, setScheduleDate] = useState("");
@@ -434,7 +437,9 @@ export default function CampaignEditor() {
   }, []);
 
   const recipientCount =
-    recipientMode === "all" ? customerList.length : selectedCustomerIds.size;
+    recipientMode === "all"
+      ? customerList.length - excludedCustomerIds.size
+      : selectedCustomerIds.size;
 
   // --- Send or schedule campaign ---
   const handleSend = useCallback(async () => {
@@ -522,6 +527,9 @@ export default function CampaignEditor() {
       if (recipientMode === "manual" && selectedCustomerIds.size > 0) {
         payload.customerIds = Array.from(selectedCustomerIds);
       }
+      if (recipientMode === "all" && excludedCustomerIds.size > 0) {
+        payload.excludeCustomerIds = Array.from(excludedCustomerIds);
+      }
 
       const res = await fetch("/api/campaigns/send", {
         method: "POST",
@@ -538,7 +546,10 @@ export default function CampaignEditor() {
       }
 
       const data = await res.json();
-      app.toast.show(`Campagna inviata a ${data.sentTo ?? "?"} iscritti`);
+      const msg = data.remaining > 0
+        ? `Inviata a ${data.sent} iscritti. Altri ${data.remaining} verranno inviati domani.`
+        : `Campagna inviata a ${data.sent} iscritti`;
+      app.toast.show(msg);
       applyTemplate("blank");
       setStep(1);
       setRecipientMode("all");
@@ -878,6 +889,59 @@ export default function CampaignEditor() {
                   helpText="Scegli a chi inviare dalla lista sottostante."
                 />
 
+                {/* Exclusion list for "all" mode */}
+                {recipientMode === "all" && customerList.length > 0 && (
+                  <BlockStack gap="200">
+                    <Text as="span" variant="bodySm" fontWeight="semibold">
+                      Escludi dalla campagna{excludedCustomerIds.size > 0 ? ` (${excludedCustomerIds.size} esclusi)` : ""}
+                    </Text>
+                    <div style={{ maxHeight: "300px", overflowY: "auto", border: "1px solid #e5e7eb", borderRadius: "8px" }}>
+                      {customerList.map((c) => (
+                        <div
+                          key={c.id}
+                          style={{
+                            padding: "8px 12px",
+                            borderBottom: "1px solid #f3f4f6",
+                            cursor: "pointer",
+                            backgroundColor: excludedCustomerIds.has(c.id) ? "#fff1f0" : "transparent",
+                          }}
+                          onClick={() => setExcludedCustomerIds((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(c.id)) next.delete(c.id); else next.add(c.id);
+                            return next;
+                          })}
+                        >
+                          <InlineStack gap="300" blockAlign="center">
+                            <Checkbox
+                              label=""
+                              checked={excludedCustomerIds.has(c.id)}
+                              onChange={() => {}}
+                            />
+                            <BlockStack gap="050">
+                              <Text as="span" variant="bodyMd">
+                                {[c.first_name, c.last_name].filter(Boolean).join(" ") || "—"}
+                              </Text>
+                              <Text as="span" variant="bodySm" tone="subdued">{c.email}</Text>
+                            </BlockStack>
+                            {excludedCustomerIds.has(c.id) && (
+                              <Text as="span" variant="bodySm" tone="critical">Escluso</Text>
+                            )}
+                          </InlineStack>
+                        </div>
+                      ))}
+                    </div>
+                    {excludedCustomerIds.size > 0 && (
+                      <Button
+                        variant="plain"
+                        tone="critical"
+                        onClick={() => setExcludedCustomerIds(new Set())}
+                      >
+                        Rimuovi tutte le esclusioni
+                      </Button>
+                    )}
+                  </BlockStack>
+                )}
+
                 {recipientMode === "manual" && (
                   <BlockStack gap="300">
                     <TextField
@@ -1033,6 +1097,11 @@ export default function CampaignEditor() {
                           ? `Invio: ${formatScheduleDate(scheduleDate, scheduleTime)}`
                           : "Invio: seleziona data e ora"}
                     </Text>
+                    {recipientCount > 90 && (
+                      <Text as="span" variant="bodySm" tone="caution">
+                        {`⚠ Limite giornaliero: le prime 90 email vengono inviate oggi, le restanti ${recipientCount - 90} automaticamente nei giorni successivi.`}
+                      </Text>
+                    )}
                   </BlockStack>
                 </Banner>
 
