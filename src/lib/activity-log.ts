@@ -20,6 +20,7 @@ export interface ActivityEntry {
     recipientCount?: number;
     customerEmail?: string;
     scheduledAt?: string;
+    remaining?: number;
   };
 }
 
