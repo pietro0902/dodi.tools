@@ -52,6 +52,9 @@ export default function CampaignEmail({
     <Html>
       <Head>
         <title>{subject}</title>
+        <meta name="color-scheme" content="light" />
+        <meta name="supported-color-schemes" content="light" />
+        <style>{`:root { color-scheme: light only; }`}</style>
       </Head>
       <Preview>{previewText}</Preview>
       <Body style={bodyStyle}>

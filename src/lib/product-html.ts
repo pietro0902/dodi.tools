@@ -18,27 +18,32 @@ function formatPrice(amount: string, currency: string): string {
 
 function buildProductCard(product: ShopifyProduct, btnColor?: string): string {
   const imgBlock = product.imageUrl
-    ? `<div style="height:160px;text-align:center;line-height:160px;overflow:hidden"><img src="${esc(product.imageUrl)}" alt="${esc(product.title)}" style="max-width:100%;max-height:160px;width:auto;height:auto;border-radius:6px;vertical-align:middle" /></div>`
-    : `<div style="height:160px"></div>`;
+    ? `<img src="${esc(product.imageUrl)}" alt="${esc(product.title)}" width="100%" style="display:block;width:100%;height:180px;object-fit:cover;border-radius:6px 6px 0 0" />`
+    : `<div style="height:180px;background:#f3f4f6;border-radius:6px 6px 0 0"></div>`;
 
-  const priceDisplay = formatPrice(product.price, product.currency);
   const compareBlock =
     product.compareAtPrice && parseFloat(product.compareAtPrice) > parseFloat(product.price)
       ? `<br/><span style="text-decoration:line-through;color:#9ca3af;font-size:13px">${formatPrice(product.compareAtPrice, product.currency)}</span>`
       : "";
 
-  return `<div style="border:1px solid #e5e7eb;border-radius:8px;padding:12px;background:#ffffff;text-align:center">
-  ${imgBlock}
-  <p style="font-size:14px;font-weight:600;color:#111827;margin:8px 0 4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(product.title)}</p>
-  <p style="font-size:15px;color:#111827;font-weight:700;margin:0 0 12px">${priceDisplay}${compareBlock}</p>
-  <a href="${esc(product.url)}" style="display:inline-block;background-color:${btnColor || "#111827"};color:#ffffff;font-size:13px;font-weight:600;text-decoration:none;padding:8px 20px;border-radius:6px">Acquista</a>
-</div>`;
+  return `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #e5e7eb;border-radius:8px;background:#ffffff;overflow:hidden">
+  <tr><td style="padding:0">${imgBlock}</td></tr>
+  <tr><td style="padding:10px 12px 14px;text-align:center">
+    <p style="font-size:14px;font-weight:600;color:#111827;margin:0 0 4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(product.title)}</p>
+    <p style="font-size:15px;color:#111827;font-weight:700;margin:0 0 10px">${formatPrice(product.price, product.currency)}${compareBlock}</p>
+    <a href="${esc(product.url)}" style="display:inline-block;background-color:${btnColor || "#111827"};color:#ffffff;font-size:13px;font-weight:600;text-decoration:none;padding:8px 20px;border-radius:6px">Acquista</a>
+  </td></tr>
+</table>`;
 }
 
 export function buildProductBlockHtml(product: ShopifyProduct, btnColor?: string): string {
   return buildProductGridHtml([product], "grid", btnColor);
 }
 
+/**
+ * Grid layout: table-based, 2 columns on desktop, 1 column on mobile.
+ * Uses media queries for stacking (supported by Gmail, Apple Mail, iOS, Android).
+ */
 export function buildProductGridHtml(products: ShopifyProduct[], layout: ProductLayout = "grid", btnColor?: string): string {
   if (products.length === 0) return "";
 
@@ -48,31 +53,61 @@ export function buildProductGridHtml(products: ShopifyProduct[], layout: Product
   return buildGridLayout(products, btnColor);
 }
 
-/**
- * Grid layout: inline-block cards at 260px width.
- * On desktop (600px email) they fit 2 per row.
- * On mobile (<400px) they stack vertically.
- */
 function buildGridLayout(products: ShopifyProduct[], btnColor?: string): string {
-  const cards = products.map((p) => {
-    return `<div style="display:inline-block;vertical-align:top;width:260px;max-width:100%;margin:8px;box-sizing:border-box">
-${buildProductCard(p, btnColor)}
-</div>`;
-  });
+  // Pair products into rows of 2
+  const rows: ShopifyProduct[][] = [];
+  for (let i = 0; i < products.length; i += 2) {
+    rows.push(products.slice(i, i + 2));
+  }
 
-  return `\n<!-- Prodotti -->\n<div style="text-align:center;margin:16px 0;font-size:0">\n${cards.join("\n")}\n</div>\n`;
+  const rowsHtml = rows.map((row) => {
+    if (row.length === 1) {
+      // Single product: full width
+      return `<tr>
+  <td class="product-col" style="padding:8px;width:100%;display:block" width="100%">
+    ${buildProductCard(row[0], btnColor)}
+  </td>
+</tr>`;
+    }
+    // Two products: 50/50
+    return `<tr>
+  <td class="product-col" style="padding:8px;width:50%;vertical-align:top" width="50%">
+    ${buildProductCard(row[0], btnColor)}
+  </td>
+  <td class="product-col" style="padding:8px;width:50%;vertical-align:top" width="50%">
+    ${buildProductCard(row[1], btnColor)}
+  </td>
+</tr>`;
+  }).join("\n");
+
+  return `
+<!-- Prodotti -->
+<style>
+  @media only screen and (max-width: 480px) {
+    .product-col { display:block !important; width:100% !important; padding:8px 4px !important; }
+  }
+</style>
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:16px 0">
+${rowsHtml}
+</table>`;
 }
 
 /**
  * Scroll layout: horizontal scrollable row.
- * Works in Gmail web, Apple Mail, iOS Mail. Degrades to wrapped layout in others.
  */
 function buildScrollLayout(products: ShopifyProduct[], btnColor?: string): string {
   const cards = products.map((p) => {
-    return `<div style="display:inline-block;vertical-align:top;width:200px;min-width:200px;margin:0 8px;box-sizing:border-box">
+    return `<td style="padding:0 8px;vertical-align:top;width:200px;min-width:200px">
 ${buildProductCard(p, btnColor)}
-</div>`;
+</td>`;
   });
 
-  return `\n<!-- Prodotti (scorrimento) -->\n<style>.ps::-webkit-scrollbar{height:4px}.ps::-webkit-scrollbar-track{background:transparent}.ps::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:4px}.ps::-webkit-scrollbar-thumb:hover{background:#9ca3af}</style>\n<div class="ps" style="overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:thin;scrollbar-color:#d1d5db transparent;white-space:nowrap;margin:16px 0;padding:4px 0 8px;font-size:0">\n${cards.join("\n")}\n</div>\n`;
+  return `
+<!-- Prodotti (scorrimento) -->
+<style>.ps::-webkit-scrollbar{height:4px}.ps::-webkit-scrollbar-track{background:transparent}.ps::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:4px}</style>
+<div class="ps" style="overflow-x:auto;-webkit-overflow-scrolling:touch;margin:16px 0">
+  <table cellpadding="0" cellspacing="0" border="0" style="white-space:nowrap">
+    <tr>${cards.join("")}</tr>
+  </table>
+</div>`;
 }
