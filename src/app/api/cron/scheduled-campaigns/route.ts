@@ -75,6 +75,13 @@ export async function POST(request: Request) {
         continue;
       }
 
+      // ── Save state BEFORE sending ──────────────────────────────────────────
+      // This prevents QStash retries (on timeout) from re-sending the same batch.
+      // If the send fails after this save, we restore thisBatchIds at the front.
+      campaign.pendingCustomerIds = remainingIds;
+      if (remainingIds.length === 0) campaign.status = "sent";
+      await saveScheduledCampaigns(campaigns);
+
       // Build all emails, then send in one batch call (no rate limit issues)
       const emails = await Promise.all(
         batchCustomers.map(async (customer) => {
@@ -123,7 +130,16 @@ export async function POST(request: Request) {
       totalSent += sent;
       totalFailed += failed;
 
+      if (failed > 0 && sent === 0) {
+        // Send completely failed — restore thisBatchIds so they can be retried tomorrow
+        campaign.pendingCustomerIds = [...thisBatchIds, ...remainingIds];
+        campaign.status = "scheduled";
+        await saveScheduledCampaigns(campaigns);
+        continue;
+      }
+
       if (remainingIds.length > 0) {
+        // Schedule next batch for tomorrow
         const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
         try {
           const qstash = getQStashClient();
@@ -138,7 +154,7 @@ export async function POST(request: Request) {
           console.error("Failed to schedule next batch:", err);
         }
 
-        campaign.pendingCustomerIds = remainingIds;
+        await saveScheduledCampaigns(campaigns);
 
         try {
           await logActivity({
@@ -150,9 +166,7 @@ export async function POST(request: Request) {
           console.error("Activity log error:", logErr);
         }
       } else {
-        campaign.status = "sent";
-        campaign.pendingCustomerIds = [];
-
+        // All done — already saved as "sent" above
         try {
           await logActivity({
             type: "scheduled_campaign_sent",
@@ -164,8 +178,6 @@ export async function POST(request: Request) {
         }
       }
     }
-
-    await saveScheduledCampaigns(campaigns);
 
     return NextResponse.json({ processed: due.length, sent: totalSent, failed: totalFailed });
   } catch (error) {

@@ -1,1 +1,10 @@
-{}
+{
+  "functions": {
+    "src/app/api/cron/scheduled-campaigns/route.ts": {
+      "maxDuration": 300
+    },
+    "src/app/api/campaigns/send/route.ts": {
+      "maxDuration": 300
+    }
+  }
+}
