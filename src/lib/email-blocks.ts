@@ -131,7 +131,7 @@ export function blocksToHtml(blocks: EmailBlock[], btnColor: string, forEmail = 
           if (!block.src) return "";
           // CSS filter:invert is not supported in email clients — skip in email output
           const invertStyle = (!forEmail && block.inverted) ? ";filter:invert(1)" : "";
-          return `<div style="text-align:center;padding:24px 0"><img src="${block.src}" alt="${block.alt || ""}" width="${block.width}" style="display:block;margin:0 auto;height:auto${invertStyle}" /></div>`;
+          return `<div style="text-align:center;padding:24px 0"><img src="${block.src}" alt="${block.alt || ""}" width="${block.width}" style="display:block;margin:0 auto;height:auto;max-width:100%${invertStyle}" /></div>`;
         }
 
         case "divider":

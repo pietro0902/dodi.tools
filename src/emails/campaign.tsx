@@ -91,6 +91,7 @@ const container: React.CSSProperties = {
   padding: "24px 32px",
   maxWidth: "600px",
   borderRadius: "8px",
+  overflow: "hidden",
 };
 
 const button: React.CSSProperties = {

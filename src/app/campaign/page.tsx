@@ -186,6 +186,11 @@ export default function CampaignEditor() {
   const [templateDescription, setTemplateDescription] = useState("");
   const [savingTemplate, setSavingTemplate] = useState(false);
 
+  // --- Test email modal ---
+  const [testEmailOpen, setTestEmailOpen] = useState(false);
+  const [testEmailAddress, setTestEmailAddress] = useState("");
+  const [sendingTest, setSendingTest] = useState(false);
+
   // --- Product picker ---
   const [pickerOpen, setPickerOpen] = useState(false);
   const [products, setProducts] = useState<ShopifyProduct[]>([]);
@@ -654,6 +659,44 @@ export default function CampaignEditor() {
     if (!app) throw new Error("App not ready");
     return app.idToken();
   }, [app]);
+
+  // --- Send test email ---
+  const handleSendTest = useCallback(async () => {
+    if (!app) return;
+    if (!testEmailAddress.trim()) {
+      app.toast.show("Inserisci un indirizzo email", { isError: true });
+      return;
+    }
+    const finalHtml = blocksToHtml(blocks, btnColor, false);
+    setSendingTest(true);
+    try {
+      const token = await app.idToken();
+      const res = await fetch("/api/campaigns/send-test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          to: testEmailAddress,
+          subject,
+          previewText: preheader || undefined,
+          bodyHtml: finalHtml,
+          bgColor,
+          btnColor,
+          containerColor,
+          textColor,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || `HTTP ${res.status}`);
+      }
+      app.toast.show(`Email di test inviata a ${testEmailAddress}`);
+      setTestEmailOpen(false);
+    } catch (err) {
+      app.toast.show(err instanceof Error ? err.message : "Errore nell'invio", { isError: true });
+    } finally {
+      setSendingTest(false);
+    }
+  }, [app, testEmailAddress, blocks, subject, preheader, bgColor, btnColor, containerColor, textColor]);
 
   // --- Save current email as template ---
   const handleOpenSaveTemplate = useCallback(() => {
@@ -1240,12 +1283,17 @@ export default function CampaignEditor() {
                 </Box>
               </InlineStack>
 
-              <InlineStack gap="300">
+              <InlineStack gap="300" wrap>
                 <Button
                   variant="primary"
                   onClick={handleGoToStep2}
                 >
                   Continua &rarr;
+                </Button>
+                <Button
+                  onClick={() => setTestEmailOpen(true)}
+                >
+                  Invia email di test
                 </Button>
                 <Button
                   onClick={handleOpenSaveTemplate}
@@ -1531,6 +1579,35 @@ export default function CampaignEditor() {
         onConfirm={handleImagePickerConfirm}
         getToken={getAppToken}
       />
+
+      {/* Test email modal */}
+      <Modal
+        open={testEmailOpen}
+        onClose={() => setTestEmailOpen(false)}
+        title="Invia email di test"
+        primaryAction={{
+          content: "Invia test",
+          onAction: handleSendTest,
+          loading: sendingTest,
+        }}
+        secondaryActions={[
+          { content: "Annulla", onAction: () => setTestEmailOpen(false) },
+        ]}
+      >
+        <Modal.Section>
+          <BlockStack gap="400">
+            <TextField
+              label="Indirizzo email"
+              type="email"
+              value={testEmailAddress}
+              onChange={setTestEmailAddress}
+              placeholder="tua@email.com"
+              autoComplete="email"
+              helpText="L'email verrà inviata con oggetto [TEST] per distinguerla dalle email reali."
+            />
+          </BlockStack>
+        </Modal.Section>
+      </Modal>
 
       {/* Save as template modal */}
       <Modal
