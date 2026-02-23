@@ -32,11 +32,14 @@ export function buildPreviewHtml(opts: PreviewOptions): string {
   <style>
     :root { color-scheme: light only; }
     img { filter: none !important; -webkit-filter: none !important; }
+    @media only screen and (max-width: 620px) {
+      .email-wrap { padding: 12px 16px !important; border-radius: 0 !important; }
+    }
   </style>
 </head>
 <body style="background-color:${bgColor};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;margin:0;padding:20px 0;color-scheme:light">
   ${preheader ? `<div style="display:none;font-size:1px;color:${bgColor};line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden">${escapeHtml(preheader)}</div>` : ""}
-  <div style="background-color:${containerColor};color:${textColor};margin:0 auto;padding:24px 32px;max-width:600px;border-radius:8px">
+  <div class="email-wrap" style="background-color:${containerColor};color:${textColor};margin:0 auto;padding:24px 32px;max-width:600px;border-radius:8px;box-sizing:border-box;width:100%">
 
     <!-- Body -->
     ${previewBody}
