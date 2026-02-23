@@ -29,7 +29,10 @@ export function buildPreviewHtml(opts: PreviewOptions): string {
   <meta name="color-scheme" content="light" />
   <meta name="supported-color-schemes" content="light" />
   <title>${escapeHtml(subject || "Anteprima")}</title>
-  <style>:root { color-scheme: light only; }</style>
+  <style>
+    :root { color-scheme: light only; }
+    img { filter: none !important; -webkit-filter: none !important; }
+  </style>
 </head>
 <body style="background-color:${bgColor};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;margin:0;padding:20px 0;color-scheme:light">
   ${preheader ? `<div style="display:none;font-size:1px;color:${bgColor};line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden">${escapeHtml(preheader)}</div>` : ""}
