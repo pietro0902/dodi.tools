@@ -54,11 +54,23 @@ export default function CampaignEmail({
         <title>{subject}</title>
         <meta name="color-scheme" content="light" />
         <meta name="supported-color-schemes" content="light" />
-        <style>{`:root { color-scheme: light only; }`}</style>
+        <style>{`
+          :root { color-scheme: light only; }
+          img { filter: none !important; -webkit-filter: none !important; }
+          @media only screen and (max-width: 620px) {
+            .email-container {
+              padding: 16px !important;
+              border-radius: 0 !important;
+            }
+            .email-container img {
+              height: auto !important;
+            }
+          }
+        `}</style>
       </Head>
       <Preview>{previewText}</Preview>
       <Body style={bodyStyle}>
-        <Container style={containerStyle}>
+        <Container className="email-container" style={containerStyle}>
           <Header />
 
           <div dangerouslySetInnerHTML={{ __html: bodyHtml }} />
@@ -93,8 +105,9 @@ const container: React.CSSProperties = {
   margin: "0 auto",
   padding: "24px 32px",
   maxWidth: "600px",
+  width: "100%",
+  boxSizing: "border-box",
   borderRadius: "8px",
-  overflow: "hidden",
 };
 
 const button: React.CSSProperties = {
