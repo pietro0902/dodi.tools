@@ -33,6 +33,7 @@ interface ScheduledCampaignItem {
   subject: string;
   scheduledAt: string;
   recipientCount: number;
+  pendingCustomerIds?: number[] | null;
 }
 
 interface ActivityItem {
@@ -114,6 +115,7 @@ export default function Dashboard() {
   const [scheduledLoading, setScheduledLoading] = useState(true);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [cancelConfirmId, setCancelConfirmId] = useState<string | null>(null);
+  const [sendingBatchId, setSendingBatchId] = useState<string | null>(null);
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [activitiesLoading, setActivitiesLoading] = useState(true);
 
@@ -217,6 +219,34 @@ export default function Dashboard() {
       );
     } finally {
       setCancellingId(null);
+    }
+  }, [app]);
+
+  const handleSendNextBatch = useCallback(async (id: string) => {
+    if (!app) return;
+    setSendingBatchId(id);
+    try {
+      const token = await app.idToken();
+      const res = await fetch("/api/campaigns/send-batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ campaignId: id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      if (data.remaining > 0) {
+        app.toast.show(`Inviati ${data.sent}. Rimangono ${data.remaining} — ripremi domani.`);
+        setScheduledCampaigns((prev) =>
+          prev.map((c) => c.id === id ? { ...c, recipientCount: data.remaining, pendingCustomerIds: Array(data.remaining).fill(0) } : c)
+        );
+      } else {
+        app.toast.show(`Campagna completata — ${data.sent} inviati`);
+        setScheduledCampaigns((prev) => prev.filter((c) => c.id !== id));
+      }
+    } catch (err) {
+      app.toast.show(err instanceof Error ? err.message : "Errore nell'invio", { isError: true });
+    } finally {
+      setSendingBatchId(null);
     }
   }, [app]);
 
@@ -379,25 +409,32 @@ export default function Dashboard() {
                             {campaign.subject}
                           </Text>
                           <Text as="span" variant="bodySm" tone="subdued">
-                            {new Date(campaign.scheduledAt).toLocaleString("it-IT", {
-                              day: "numeric",
-                              month: "long",
-                              year: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
-                            {` \u2022 ${campaign.recipientCount} destinatar${campaign.recipientCount === 1 ? "io" : "i"}`}
+                            {campaign.pendingCustomerIds != null
+                              ? `${campaign.pendingCustomerIds.length} destinatari rimasti`
+                              : `${campaign.recipientCount} destinatar${campaign.recipientCount === 1 ? "io" : "i"}`}
                           </Text>
                         </BlockStack>
-                        <Button
-                          variant="primary"
-                          tone="critical"
-                          size="slim"
-                          onClick={() => setCancelConfirmId(campaign.id)}
-                          loading={cancellingId === campaign.id}
-                        >
-                          Annulla
-                        </Button>
+                        <InlineStack gap="200">
+                          {campaign.pendingCustomerIds != null && campaign.pendingCustomerIds.length > 0 && (
+                            <Button
+                              variant="primary"
+                              size="slim"
+                              onClick={() => handleSendNextBatch(campaign.id)}
+                              loading={sendingBatchId === campaign.id}
+                            >
+                              Invia prossimo batch
+                            </Button>
+                          )}
+                          <Button
+                            variant="primary"
+                            tone="critical"
+                            size="slim"
+                            onClick={() => setCancelConfirmId(campaign.id)}
+                            loading={cancellingId === campaign.id}
+                          >
+                            Annulla
+                          </Button>
+                        </InlineStack>
                       </InlineStack>
                     </div>
                   ))}

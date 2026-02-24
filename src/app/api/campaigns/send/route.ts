@@ -3,7 +3,6 @@ import { getOptInCustomers } from "@/lib/shopify";
 import { getResendClient } from "@/lib/resend";
 import { getSessionFromRequest } from "@/lib/session-token";
 import { logActivity } from "@/lib/activity-log";
-import { getQStashClient, getAppUrl } from "@/lib/qstash";
 import { addScheduledCampaign } from "@/lib/scheduled-campaigns";
 import CampaignEmail from "@/emails/campaign";
 import { renderAsync } from "@react-email/render";
@@ -118,20 +117,11 @@ export async function POST(request: NextRequest) {
       failed = thisBatch.length;
     }
 
-    // If more recipients remain, schedule continuation for tomorrow
-    let scheduledContinuation = false;
+    // If more recipients remain, save them as a pending campaign (manual trigger)
+    let savedContinuation = false;
     if (remaining.length > 0 && sent > 0) {
       try {
         const campaignId = crypto.randomUUID();
-        const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
-        const qstash = getQStashClient();
-        const { messageId } = await qstash.publishJSON({
-          url: getAppUrl("/api/cron/scheduled-campaigns"),
-          body: { campaignId },
-          notBefore: Math.floor(tomorrow.getTime() / 1000),
-          retries: 3,
-        });
-
         await addScheduledCampaign({
           id: campaignId,
           subject: body.subject,
@@ -141,21 +131,19 @@ export async function POST(request: NextRequest) {
           ctaUrl: body.ctaUrl || "",
           logoWidth: 120,
           recipientMode: "manual",
-          scheduledAt: tomorrow.toISOString(),
+          scheduledAt: new Date().toISOString(),
           status: "scheduled",
           createdAt: new Date().toISOString(),
           recipientCount: remaining.length,
-          qstashMessageId: messageId,
           bgColor: body.bgColor,
           btnColor: body.btnColor,
           containerColor: body.containerColor,
           textColor: body.textColor,
           pendingCustomerIds: remaining.map((c) => c.id),
         });
-
-        scheduledContinuation = true;
+        savedContinuation = true;
       } catch (err) {
-        console.error("Failed to schedule continuation:", err);
+        console.error("Failed to save continuation:", err);
       }
     }
 
@@ -173,7 +161,7 @@ export async function POST(request: NextRequest) {
       sent,
       failed,
       remaining: remaining.length,
-      scheduledContinuation,
+      savedContinuation,
       dailyLimit: DAILY_LIMIT,
     });
   } catch (error) {

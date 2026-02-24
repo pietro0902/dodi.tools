@@ -7,7 +7,7 @@ import {
   type ScheduledCampaign,
 } from "@/lib/scheduled-campaigns";
 import { logActivity } from "@/lib/activity-log";
-import { verifyQStashRequest, getQStashClient, getAppUrl } from "@/lib/qstash";
+import { verifyQStashRequest } from "@/lib/qstash";
 import CampaignEmail from "@/emails/campaign";
 import { renderAsync } from "@react-email/render";
 
@@ -75,14 +75,12 @@ export async function POST(request: Request) {
         continue;
       }
 
-      // ── Save state BEFORE sending ──────────────────────────────────────────
-      // This prevents QStash retries (on timeout) from re-sending the same batch.
-      // If the send fails after this save, we restore thisBatchIds at the front.
+      // Save state BEFORE sending — prevents double-send if this request is retried
       campaign.pendingCustomerIds = remainingIds;
       if (remainingIds.length === 0) campaign.status = "sent";
       await saveScheduledCampaigns(campaigns);
 
-      // Build all emails, then send in one batch call (no rate limit issues)
+      // Build and send batch
       const emails = await Promise.all(
         batchCustomers.map(async (customer) => {
           const firstName = customer.first_name || "Cliente";
@@ -102,12 +100,7 @@ export async function POST(request: Request) {
               textColor: campaign.textColor,
             })
           );
-          return {
-            from: process.env.EMAIL_FROM!,
-            to: customer.email,
-            subject: campaign.subject,
-            html,
-          };
+          return { from: process.env.EMAIL_FROM!, to: customer.email, subject: campaign.subject, html };
         })
       );
 
@@ -127,55 +120,27 @@ export async function POST(request: Request) {
         failed = batchCustomers.length;
       }
 
-      totalSent += sent;
-      totalFailed += failed;
-
       if (failed > 0 && sent === 0) {
-        // Send completely failed — restore thisBatchIds so they can be retried tomorrow
+        // Restore batch so it can be retried manually
         campaign.pendingCustomerIds = [...thisBatchIds, ...remainingIds];
         campaign.status = "scheduled";
         await saveScheduledCampaigns(campaigns);
-        continue;
       }
 
-      if (remainingIds.length > 0) {
-        // Schedule next batch for tomorrow
-        const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
-        try {
-          const qstash = getQStashClient();
-          const { messageId } = await qstash.publishJSON({
-            url: getAppUrl("/api/cron/scheduled-campaigns"),
-            body: { campaignId: campaign.id },
-            notBefore: Math.floor(tomorrow.getTime() / 1000),
-            retries: 3,
-          });
-          campaign.qstashMessageId = messageId;
-        } catch (err) {
-          console.error("Failed to schedule next batch:", err);
-        }
+      totalSent += sent;
+      totalFailed += failed;
 
-        await saveScheduledCampaigns(campaigns);
-
-        try {
-          await logActivity({
-            type: "scheduled_campaign_sent",
-            summary: `Campagna '${campaign.subject}' — ${sent} inviati, ${remainingIds.length} rimangono`,
-            details: { subject: campaign.subject, sent, failed, remaining: remainingIds.length },
-          });
-        } catch (logErr) {
-          console.error("Activity log error:", logErr);
-        }
-      } else {
-        // All done — already saved as "sent" above
-        try {
-          await logActivity({
-            type: "scheduled_campaign_sent",
-            summary: `Campagna '${campaign.subject}' completata — ${sent} inviati`,
-            details: { subject: campaign.subject, sent, failed, remaining: 0 },
-          });
-        } catch (logErr) {
-          console.error("Activity log error:", logErr);
-        }
+      const remaining = campaign.pendingCustomerIds?.length ?? 0;
+      try {
+        await logActivity({
+          type: "scheduled_campaign_sent",
+          summary: remaining > 0
+            ? `Campagna '${campaign.subject}' — ${sent} inviati, ${remaining} rimangono`
+            : `Campagna '${campaign.subject}' completata — ${sent} inviati`,
+          details: { subject: campaign.subject, sent, failed, remaining },
+        });
+      } catch (logErr) {
+        console.error("Activity log error:", logErr);
       }
     }
 
