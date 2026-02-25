@@ -160,6 +160,27 @@ export default function CampaignEditor() {
 
   // --- Excluded customers (for "all" mode) ---
   const [excludedCustomerIds, setExcludedCustomerIds] = useState<Set<number>>(new Set());
+  const [excludeEmailInput, setExcludeEmailInput] = useState("");
+  const [excludeInputError, setExcludeInputError] = useState("");
+
+  const applyEmailExclusions = useCallback((rawText: string) => {
+    const emails = rawText
+      .split(/[\n,;]+/)
+      .map((e) => e.trim().toLowerCase())
+      .filter((e) => e.includes("@"));
+    if (emails.length === 0) return;
+    const emailSet = new Set(emails);
+    setExcludedCustomerIds((prev) => {
+      const next = new Set(prev);
+      customerList.forEach((c) => {
+        if (emailSet.has(c.email.toLowerCase())) next.add(c.id);
+      });
+      return next;
+    });
+    const matched = customerList.filter((c) => emailSet.has(c.email.toLowerCase())).length;
+    const notFound = emails.length - matched;
+    setExcludeInputError(notFound > 0 ? `${notFound} email non trovate nella lista iscritti` : "");
+  }, [customerList]);
 
   // --- Step 3: scheduling ---
   const [sendMode, setSendMode] = useState<"now" | "schedule">("now");
@@ -889,13 +910,65 @@ export default function CampaignEditor() {
                   helpText="Scegli a chi inviare dalla lista sottostante."
                 />
 
-                {/* Exclusion list for "all" mode */}
+                {/* Exclusion section for "all" mode */}
                 {recipientMode === "all" && customerList.length > 0 && (
-                  <BlockStack gap="200">
+                  <BlockStack gap="300">
                     <Text as="span" variant="bodySm" fontWeight="semibold">
-                      Escludi dalla campagna{excludedCustomerIds.size > 0 ? ` (${excludedCustomerIds.size} esclusi)` : ""}
+                      {`Escludi dalla campagna${excludedCustomerIds.size > 0 ? ` (${excludedCustomerIds.size} esclusi)` : ""}`}
                     </Text>
-                    <div style={{ maxHeight: "300px", overflowY: "auto", border: "1px solid #e5e7eb", borderRadius: "8px" }}>
+
+                    {/* Paste or upload emails */}
+                    <BlockStack gap="200">
+                      <TextField
+                        label="Incolla lista email da escludere"
+                        value={excludeEmailInput}
+                        onChange={setExcludeEmailInput}
+                        multiline={4}
+                        placeholder={"mario@esempio.com\nlucia@esempio.com\n..."}
+                        helpText="Una email per riga, oppure separate da virgola o punto e virgola."
+                        autoComplete="off"
+                      />
+                      <InlineStack gap="200" blockAlign="center">
+                        <Button
+                          onClick={() => {
+                            applyEmailExclusions(excludeEmailInput);
+                            setExcludeEmailInput("");
+                          }}
+                          disabled={!excludeEmailInput.trim()}
+                        >
+                          Applica esclusioni
+                        </Button>
+                        <Text as="span" variant="bodySm" tone="subdued">oppure</Text>
+                        <div>
+                          <input
+                            type="file"
+                            accept=".txt,.csv"
+                            style={{ display: "none" }}
+                            id="exclude-file-input"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              const reader = new FileReader();
+                              reader.onload = (ev) => {
+                                const text = ev.target?.result as string;
+                                applyEmailExclusions(text);
+                              };
+                              reader.readAsText(file);
+                              e.target.value = "";
+                            }}
+                          />
+                          <Button onClick={() => document.getElementById("exclude-file-input")?.click()}>
+                            Carica file .txt / .csv
+                          </Button>
+                        </div>
+                      </InlineStack>
+                      {excludeInputError && (
+                        <Text as="span" variant="bodySm" tone="caution">{excludeInputError}</Text>
+                      )}
+                    </BlockStack>
+
+                    {/* Clickable list */}
+                    <div style={{ maxHeight: "280px", overflowY: "auto", border: "1px solid #e5e7eb", borderRadius: "8px" }}>
                       {customerList.map((c) => (
                         <div
                           key={c.id}
@@ -930,11 +1003,12 @@ export default function CampaignEditor() {
                         </div>
                       ))}
                     </div>
+
                     {excludedCustomerIds.size > 0 && (
                       <Button
                         variant="plain"
                         tone="critical"
-                        onClick={() => setExcludedCustomerIds(new Set())}
+                        onClick={() => { setExcludedCustomerIds(new Set()); setExcludeInputError(""); }}
                       >
                         Rimuovi tutte le esclusioni
                       </Button>
