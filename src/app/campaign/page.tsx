@@ -151,7 +151,7 @@ export default function CampaignEditor() {
 
   // --- Step flow ---
   const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [recipientMode, setRecipientMode] = useState<"all" | "manual">("all");
+  const [recipientMode, setRecipientMode] = useState<"all" | "manual" | "email_list">("all");
   const [customerList, setCustomerList] = useState<CustomerListItem[]>([]);
   const [customersLoading, setCustomersLoading] = useState(false);
   const [selectedCustomerIds, setSelectedCustomerIds] = useState<Set<number>>(new Set());
@@ -162,6 +162,30 @@ export default function CampaignEditor() {
   const [excludedCustomerIds, setExcludedCustomerIds] = useState<Set<number>>(new Set());
   const [excludeEmailInput, setExcludeEmailInput] = useState("");
   const [excludeInputError, setExcludeInputError] = useState("");
+
+  // --- Email list (for "email_list" mode) ---
+  const [emailListInput, setEmailListInput] = useState("");
+  const [emailListIds, setEmailListIds] = useState<Set<number>>(new Set());
+  const [emailListError, setEmailListError] = useState("");
+
+  const applyEmailInclusions = useCallback((rawText: string) => {
+    const emails = rawText
+      .split(/[\n,;]+/)
+      .map((e) => e.trim().toLowerCase())
+      .filter((e) => e.includes("@"));
+    if (emails.length === 0) return;
+    const emailSet = new Set(emails);
+    setEmailListIds((prev) => {
+      const next = new Set(prev);
+      customerList.forEach((c) => {
+        if (emailSet.has(c.email.toLowerCase())) next.add(c.id);
+      });
+      return next;
+    });
+    const matched = customerList.filter((c) => emailSet.has(c.email.toLowerCase())).length;
+    const notFound = emails.length - matched;
+    setEmailListError(notFound > 0 ? `${notFound} email non trovate nella lista iscritti` : "");
+  }, [customerList]);
 
   const applyEmailExclusions = useCallback((rawText: string) => {
     const emails = rawText
@@ -417,6 +441,7 @@ export default function CampaignEditor() {
 
   const handleGoToStep3 = useCallback(() => {
     if (recipientMode === "manual" && selectedCustomerIds.size === 0) return;
+    if (recipientMode === "email_list" && emailListIds.size === 0) return;
     if (!scheduleDate || !scheduleTime) {
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
@@ -432,7 +457,7 @@ export default function CampaignEditor() {
       setScheduleTime(`${hh}:${mi}`);
     }
     setStep(3);
-  }, [recipientMode, selectedCustomerIds.size, scheduleDate, scheduleTime]);
+  }, [recipientMode, selectedCustomerIds.size, emailListIds.size, scheduleDate, scheduleTime]);
 
   const filteredCustomers = useMemo(() => {
     if (!customerSearch) return customerList;
@@ -460,7 +485,9 @@ export default function CampaignEditor() {
   const recipientCount =
     recipientMode === "all"
       ? customerList.length - excludedCustomerIds.size
-      : selectedCustomerIds.size;
+      : recipientMode === "email_list"
+        ? emailListIds.size
+        : selectedCustomerIds.size;
 
   // --- Send or schedule campaign ---
   const handleSend = useCallback(async () => {
@@ -486,7 +513,11 @@ export default function CampaignEditor() {
           ctaText: "",
           ctaUrl: "",
           recipientMode,
-          customerIds: recipientMode === "manual" ? Array.from(selectedCustomerIds) : undefined,
+          customerIds: recipientMode === "manual"
+            ? Array.from(selectedCustomerIds)
+            : recipientMode === "email_list"
+              ? Array.from(emailListIds)
+              : undefined,
           scheduledAt,
           recipientCount,
           bgColor,
@@ -514,6 +545,7 @@ export default function CampaignEditor() {
         setStep(1);
         setRecipientMode("all");
         setSelectedCustomerIds(new Set());
+        setEmailListIds(new Set());
         setSendMode("now");
         setScheduleDate("");
         setScheduleTime("");
@@ -547,6 +579,8 @@ export default function CampaignEditor() {
 
       if (recipientMode === "manual" && selectedCustomerIds.size > 0) {
         payload.customerIds = Array.from(selectedCustomerIds);
+      } else if (recipientMode === "email_list" && emailListIds.size > 0) {
+        payload.customerIds = Array.from(emailListIds);
       }
       if (recipientMode === "all" && excludedCustomerIds.size > 0) {
         payload.excludeCustomerIds = Array.from(excludedCustomerIds);
@@ -575,6 +609,7 @@ export default function CampaignEditor() {
       setStep(1);
       setRecipientMode("all");
       setSelectedCustomerIds(new Set());
+      setEmailListIds(new Set());
       setSendMode("now");
     } catch (err) {
       app.toast.show(
@@ -584,7 +619,7 @@ export default function CampaignEditor() {
     } finally {
       setSending(false);
     }
-  }, [blocks, subject, preheader, app, applyTemplate, recipientMode, selectedCustomerIds, sendMode, scheduleDate, scheduleTime, recipientCount, bgColor, btnColor, containerColor, textColor]);
+  }, [blocks, subject, preheader, app, applyTemplate, recipientMode, selectedCustomerIds, emailListIds, excludedCustomerIds, sendMode, scheduleDate, scheduleTime, recipientCount, bgColor, btnColor, containerColor, textColor]);
 
   // --- Product picker: fetch products ---
   const fetchProducts = useCallback(
@@ -909,6 +944,108 @@ export default function CampaignEditor() {
                   onChange={() => setRecipientMode("manual")}
                   helpText="Scegli a chi inviare dalla lista sottostante."
                 />
+                <RadioButton
+                  label={`Lista email${emailListIds.size > 0 ? ` (${emailListIds.size} trovati)` : ""}`}
+                  checked={recipientMode === "email_list"}
+                  id="recipients-email-list"
+                  name="recipientMode"
+                  onChange={() => setRecipientMode("email_list")}
+                  helpText="Incolla o carica un file con le email a cui inviare. Solo gli iscritti con consenso marketing verranno inclusi."
+                />
+
+                {/* Email list section */}
+                {recipientMode === "email_list" && (
+                  <BlockStack gap="300">
+                    <BlockStack gap="200">
+                      <TextField
+                        label="Incolla lista email destinatari"
+                        value={emailListInput}
+                        onChange={setEmailListInput}
+                        multiline={4}
+                        placeholder={"mario@esempio.com\nlucia@esempio.com\n..."}
+                        helpText="Una email per riga, oppure separate da virgola o punto e virgola."
+                        autoComplete="off"
+                      />
+                      <InlineStack gap="200" blockAlign="center">
+                        <Button
+                          onClick={() => {
+                            applyEmailInclusions(emailListInput);
+                            setEmailListInput("");
+                          }}
+                          disabled={!emailListInput.trim()}
+                        >
+                          Applica lista
+                        </Button>
+                        <Text as="span" variant="bodySm" tone="subdued">oppure</Text>
+                        <div>
+                          <input
+                            type="file"
+                            accept=".txt,.csv"
+                            style={{ display: "none" }}
+                            id="include-file-input"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              const reader = new FileReader();
+                              reader.onload = (ev) => {
+                                const text = ev.target?.result as string;
+                                applyEmailInclusions(text);
+                              };
+                              reader.readAsText(file);
+                              e.target.value = "";
+                            }}
+                          />
+                          <Button onClick={() => document.getElementById("include-file-input")?.click()}>
+                            Carica file .txt / .csv
+                          </Button>
+                        </div>
+                      </InlineStack>
+                      {emailListError && (
+                        <Text as="span" variant="bodySm" tone="caution">{emailListError}</Text>
+                      )}
+                    </BlockStack>
+
+                    {emailListIds.size > 0 && (
+                      <BlockStack gap="200">
+                        <div style={{ maxHeight: "280px", overflowY: "auto", border: "1px solid #e5e7eb", borderRadius: "8px" }}>
+                          {customerList.filter((c) => emailListIds.has(c.id)).map((c) => (
+                            <div
+                              key={c.id}
+                              style={{
+                                padding: "8px 12px",
+                                borderBottom: "1px solid #f3f4f6",
+                                cursor: "pointer",
+                                backgroundColor: "#f0f5ff",
+                              }}
+                              onClick={() => setEmailListIds((prev) => {
+                                const next = new Set(prev);
+                                next.delete(c.id);
+                                return next;
+                              })}
+                            >
+                              <InlineStack gap="300" blockAlign="center">
+                                <Checkbox label="" checked onChange={() => {}} />
+                                <BlockStack gap="050">
+                                  <Text as="span" variant="bodyMd">
+                                    {[c.first_name, c.last_name].filter(Boolean).join(" ") || "—"}
+                                  </Text>
+                                  <Text as="span" variant="bodySm" tone="subdued">{c.email}</Text>
+                                </BlockStack>
+                              </InlineStack>
+                            </div>
+                          ))}
+                        </div>
+                        <Button
+                          variant="plain"
+                          tone="critical"
+                          onClick={() => { setEmailListIds(new Set()); setEmailListError(""); }}
+                        >
+                          Svuota lista
+                        </Button>
+                      </BlockStack>
+                    )}
+                  </BlockStack>
+                )}
 
                 {/* Exclusion section for "all" mode */}
                 {recipientMode === "all" && customerList.length > 0 && (
@@ -1084,8 +1221,10 @@ export default function CampaignEditor() {
                 <Banner tone="info">
                   <p>
                     {recipientMode === "all"
-                      ? `Invierai a ${customerList.length} destinatar${customerList.length === 1 ? "io" : "i"}`
-                      : `Invierai a ${selectedCustomerIds.size} destinatar${selectedCustomerIds.size === 1 ? "io" : "i"}`}
+                      ? `Invierai a ${customerList.length - excludedCustomerIds.size} destinatar${customerList.length - excludedCustomerIds.size === 1 ? "io" : "i"}`
+                      : recipientMode === "email_list"
+                        ? `Invierai a ${emailListIds.size} destinatar${emailListIds.size === 1 ? "io" : "i"}`
+                        : `Invierai a ${selectedCustomerIds.size} destinatar${selectedCustomerIds.size === 1 ? "io" : "i"}`}
                   </p>
                 </Banner>
 
@@ -1094,7 +1233,10 @@ export default function CampaignEditor() {
                   <Button
                     variant="primary"
                     onClick={handleGoToStep3}
-                    disabled={recipientMode === "manual" && selectedCustomerIds.size === 0}
+                    disabled={
+                      (recipientMode === "manual" && selectedCustomerIds.size === 0) ||
+                      (recipientMode === "email_list" && emailListIds.size === 0)
+                    }
                   >
                     Continua &rarr;
                   </Button>
@@ -1553,8 +1695,10 @@ export default function CampaignEditor() {
           <Text as="p">
             {sendMode === "now"
               ? recipientMode === "all"
-                ? `Stai per inviare la campagna "${subject}" a tutti i ${customerList.length} iscritti. Confermi?`
-                : `Stai per inviare la campagna "${subject}" a ${selectedCustomerIds.size} destinatar${selectedCustomerIds.size === 1 ? "io" : "i"} selezionat${selectedCustomerIds.size === 1 ? "o" : "i"}. Confermi?`
+                ? `Stai per inviare la campagna "${subject}" a tutti i ${customerList.length - excludedCustomerIds.size} iscritti. Confermi?`
+                : recipientMode === "email_list"
+                  ? `Stai per inviare la campagna "${subject}" a ${emailListIds.size} destinatar${emailListIds.size === 1 ? "io" : "i"} dalla lista. Confermi?`
+                  : `Stai per inviare la campagna "${subject}" a ${selectedCustomerIds.size} destinatar${selectedCustomerIds.size === 1 ? "io" : "i"} selezionat${selectedCustomerIds.size === 1 ? "o" : "i"}. Confermi?`
               : `Stai per schedulare la campagna "${subject}" per ${formatScheduleDate(scheduleDate, scheduleTime)} a ${recipientCount} destinatar${recipientCount === 1 ? "io" : "i"}. Confermi?`}
           </Text>
         </Modal.Section>
